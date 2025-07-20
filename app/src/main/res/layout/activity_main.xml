@@ -4,8 +4,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/calculator_background"
     android:padding="16dp"
     tools:context=".MainActivity">
+
 
     <EditText
         android:id="@+id/editTextNumber1"
@@ -15,6 +17,8 @@
         android:hint="Enter first number"
         android:inputType="numberDecimal"
         android:padding="16dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#CCCCCC"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -27,6 +31,8 @@
         android:hint="Enter second number"
         android:inputType="numberDecimal"
         android:padding="16dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#CCCCCC"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/editTextNumber1" />
@@ -48,7 +54,9 @@
             android:layout_height="wrap_content"
             android:layout_margin="4dp"
             android:layout_weight="1"
+            android:backgroundTint="#4CAF50"
             android:text="+" />
+
 
         <Button
             android:id="@+id/buttonSubtract"
@@ -56,6 +64,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="4dp"
             android:layout_weight="1"
+            android:backgroundTint="#4CAF50"
             android:text="-" />
 
         <Button
@@ -64,6 +73,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="4dp"
             android:layout_weight="1"
+            android:backgroundTint="#4CAF50"
             android:text="×" />
 
         <Button
@@ -72,6 +82,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="4dp"
             android:layout_weight="1"
+            android:backgroundTint="#4CAF50"
             android:text="÷" />
     </LinearLayout>
 
@@ -81,7 +92,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="36dp"
         android:text="Result will be shown here"
-        android:textColor="#0000FF"
+        android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"

@@ -1,0 +1,47 @@
+<resources>
+    <string name="app_name">Campus Lost &amp; Found</string>
+    <string name="add_item">Add Item</string>
+    <string name="lost_items">Lost Items</string>
+    <string name="found_items">Found Items</string>
+    <string name="my_reports">My Reports</string>
+    <string name="report_lost_item">Report Lost Item</string>
+    <string name="report_found_item">Report Found Item</string>
+    <string name="item_name">Item Name</string>
+    <string name="description">Description</string>
+    <string name="category">Category</string>
+    <string name="location">Location</string>
+    <string name="date_lost">Date Lost</string>
+    <string name="date_found">Date Found</string>
+    <string name="kept_at">Where Item is Kept</string>
+    <string name="submit">Submit</string>
+    <string name="claim_item">Claim Item</string>
+    <string name="search">Search</string>
+    <string name="filter">Filter</string>
+
+    <!-- New strings for the ItemsAdapter -->
+    <string name="reported_by">Reported by: %1$s</string>
+    <string name="lost_on">Lost on: %1$s</string>
+    <string name="found_on">Found on: %1$s</string>
+    <string name="claimed">Claimed</string>
+    <string name="claim">Claim</string>
+    <string name="item_image_description">Item image</string>
+
+    <!-- Login strings -->
+    <string name="login_subtitle">Sign in to access Lost &amp; Found features</string>
+    <string name="email">Email Address</string>
+    <string name="password">Password</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="login">Login</string>
+    <string name="create_account">Create Account</string>
+    <string name="auth_required">Authentication Required</string>
+    <string name="please_sign_in">Please sign in to use the Campus Lost &amp; Found features.</string>
+    <string name="sign_in">Sign In</string>
+    <string name="later">Later</string>
+    <string name="what_to_report">What would you like to report?</string>
+
+    <!-- Google Sign-In and Default Email -->
+    <string name="or">OR</string>
+    <string name="use_default_email">Use Default Email</string>
+    <string name="google_sign_in_failed">Google Sign-In failed: %1$s</string>
+    <string name="default_email">sgp.noreplydce@gmail.com</string>
+</resources>
