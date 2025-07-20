@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark"
+    tools:context=".MainActivity">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_title"
+            android:textColor="@color/on_background_dark"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Category Selection -->
+        <TextView
+            android:id="@+id/category_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/category_header"
+            android:textColor="@color/on_background_dark"
+            android:textSize="18sp"
+            android:layout_marginTop="24dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/title" />
+
+        <!-- Spinner wrapped in a container for better touch target -->
+        <FrameLayout
+            android:id="@+id/spinner_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/category_label"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <Spinner
+                android:id="@+id/category_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:minHeight="48dp"
+                android:background="@drawable/spinner_background"
+                android:popupBackground="@color/white"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp" />
+        </FrameLayout>
+
+        <!-- Items Selection -->
+        <TextView
+            android:id="@+id/items_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/items_header"
+            android:textColor="@color/on_background_dark"
+            android:textSize="18sp"
+            android:layout_marginTop="24dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/spinner_container" />
+
+        <!-- Electronics Items -->
+        <LinearLayout
+            android:id="@+id/electronics_items"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/items_label">
+
+            <CheckBox
+                android:id="@+id/cb_smartphone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/item_smartphone"
+                android:textColor="@color/on_background_dark"
+                android:buttonTint="@color/secondary" />
+
+            <CheckBox
+                android:id="@+id/cb_laptop"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/item_laptop"
+                android:textColor="@color/on_background_dark"
+                android:buttonTint="@color/secondary" />
+
+            <CheckBox
+                android:id="@+id/cb_headphones"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/item_headphones"
+                android:textColor="@color/on_background_dark"
+                android:buttonTint="@color/secondary" />
+        </LinearLayout>
+
+        <!-- Clothing Items -->
+        <LinearLayout
+            android:id="@+id/clothing_items"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/items_label">
+
+            <CheckBox
+                android:id="@+id/cb_tshirt"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/item_tshirt"
+                android:textColor="@color/on_background_dark"
+                android:buttonTint="@color/secondary" />
+
+            <CheckBox
+                android:id="@+id/cb_jeans"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/item_jeans"
+                android:textColor="@color/on_background_dark"
+                android:buttonTint="@color/secondary" />
+
+            <CheckBox
+                android:id="@+id/cb_jacket"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/item_jacket"
+                android:textColor="@color/on_background_dark"
+                android:buttonTint="@color/secondary" />
+        </LinearLayout>
+
+        <!-- Grocery Items -->
+        <LinearLayout
+            android:id="@+id/grocery_items"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/items_label">
+
+            <CheckBox
+                android:id="@+id/cb_fruits"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/item_fruits"
+                android:textColor="@color/on_background_dark"
+                android:buttonTint="@color/secondary" />
+
+            <CheckBox
+                android:id="@+id/cb_vegetables"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/item_vegetables"
+                android:textColor="@color/on_background_dark"
+                android:buttonTint="@color/secondary" />
+
+            <CheckBox
+                android:id="@+id/cb_dairy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/item_dairy"
+                android:textColor="@color/on_background_dark"
+                android:buttonTint="@color/secondary" />
+        </LinearLayout>
+
+        <!-- Barrier to position rewards card below all category items -->
+        <androidx.constraintlayout.widget.Barrier
+            android:id="@+id/items_barrier"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:barrierDirection="bottom"
+            app:constraint_referenced_ids="electronics_items,clothing_items,grocery_items" />
+
+        <!-- Rewards Card -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/rewards_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            app:cardBackgroundColor="@color/card_dark"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="6dp"
+            app:layout_constraintTop_toBottomOf="@id/items_barrier"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginBottom="24dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/rewards_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/rewards_header"
+                    android:textColor="@color/on_background_dark"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/total_rewards"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/total_rewards"
+                    android:textColor="@color/accent_green"
+                    android:textSize="20sp" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Buttons -->
+        <Button
+            android:id="@+id/calculate_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginEnd="4dp"
+            android:text="@string/calculate_button"
+            android:background="@drawable/rounded_button"
+            android:backgroundTint="@color/black"
+            app:layout_constraintEnd_toStartOf="@id/clear_button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/rewards_card"
+            app:layout_constraintWidth_percent="0.5" />
+
+        <Button
+            android:id="@+id/clear_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="@string/clear_button"
+            android:background="@drawable/rounded_button_secondary"
+
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/calculate_button"
+            app:layout_constraintTop_toTopOf="@id/calculate_button"
+            app:layout_constraintWidth_percent="0.5" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.core.widget.NestedScrollView>

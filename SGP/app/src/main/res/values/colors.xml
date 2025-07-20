@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Theme colors -->
+    <color name="tech_black">#FF121212</color>
+    <color name="tech_black_lighter">#FF1D1D1D</color>
+    <color name="dark_gray">#FF2D2D2D</color>
+    <color name="light_gray">#FFBDBDBD</color>
+
+    <!-- Primary colors - Cybernetic blue -->
+    <color name="primary">#FF0088FF</color>
+    <color name="cybernetic_blue">#FF0088FF</color>
+    <color name="cybernetic_blue_dark">#FF0066CC</color>
+    <color name="cybernetic_blue_light">#FF66BBFF</color>
+
+    <!-- Secondary colors - Neon green -->
+    <color name="neon_green">#FF39FF14</color>
+    <color name="neon_green_dark">#FF00CC00</color>
+    <color name="neon_green_light">#FF7FFF7F</color>
+
+    <!-- Alert colors -->
+    <color name="warning_red">#FFFF3B30</color>
+    <color name="safe_green">#FF34C759</color>
+    <color name="caution_amber">#FFFF9500</color>
+
+    <!-- Transparent colors -->
+    <color name="semi_transparent_black">#99000000</color>
+
+    <!-- Bottom navigation selector -->
+    <color name="nav_unselected">#FF6E6E6E</color>
+</resources>

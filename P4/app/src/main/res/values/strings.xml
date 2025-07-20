@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">P4 : ShopRewards</string>
+
+    <!-- App titles and headers -->
+    <string name="app_title">SHOP REWARDS CALCULATOR</string>
+    <string name="category_header">Select Product Category:</string>
+    <string name="items_header">Select Items:</string>
+    <string name="rewards_header">Your Rewards</string>
+    <string name="premium_header">Select Premium Item:</string>
+
+    <!-- Categories -->
+    <string name="category_electronics">Electronics</string>
+    <string name="category_clothing">Clothing</string>
+    <string name="category_grocery">Grocery</string>
+
+    <!-- Category array for spinner -->
+    <string-array name="categories_array">
+        <item>Electronics</item>
+        <item>Clothing</item>
+        <item>Grocery</item>
+    </string-array>
+
+    <!-- Items -->
+    <string name="item_smartphone">Smartphone</string>
+    <string name="item_laptop">Laptop</string>
+    <string name="item_headphones">Headphones</string>
+    <string name="item_tshirt">T-Shirt</string>
+    <string name="item_jeans">Jeans</string>
+    <string name="item_jacket">Jacket</string>
+    <string name="item_fruits">Fruits</string>
+    <string name="item_vegetables">Vegetables</string>
+    <string name="item_dairy">Dairy Products</string>
+
+    <!-- Premium Items for Spinner -->
+    <string name="premium_item_prompt">Select a premium item</string>
+    <string name="premium_item_none">None</string>
+    <string name="premium_item_smartwatch">Premium Smartwatch (+75 points)</string>
+    <string name="premium_item_designer">Designer Accessory (+60 points)</string>
+    <string name="premium_item_organic">Organic Gift Basket (+45 points)</string>
+
+    <!-- Button and reward text -->
+    <string name="calculate_button">Calculate Rewards</string>
+    <string name="total_rewards">Total Reward Points: %1$d</string>
+    <string name="clear_button">Clear Selection</string>
+</resources>

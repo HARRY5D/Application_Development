@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">Secure Chat Lite</string>
+    <string name="notification_listener_service_label">Secure Chat Lite - Notification Monitor</string>
+    <string name="accessibility_service_label">Secure Chat Lite - Screen Monitor</string>
+    <string name="notification_listener_description">This service monitors notifications from messaging apps to detect potential social engineering attacks.</string>
+    <string name="accessibility_service_description">This service monitors on-screen text in messaging apps to detect potential social engineering attacks.</string>
+    <string name="permissions_required">Required Permissions</string>
+    <string name="notification_permission_explanation">This app needs access to your notifications to analyze message content for potential security threats.</string>
+    <string name="accessibility_permission_explanation">This app needs accessibility permissions to analyze on-screen messages for potential security threats.</string>
+    <string name="enable_notification_access">Enable Notification Access</string>
+    <string name="enable_accessibility_access">Enable Screen Monitoring</string>
+    <string name="dashboard_title">Security Dashboard</string>
+    <string name="settings_title">Settings</string>
+    <string name="detected_threats">Detected Threats</string>
+    <string name="no_threats_detected">No threats detected</string>
+    <string name="safe_message">Safe</string>
+    <string name="suspicious_message">Suspicious</string>
+    <string name="dangerous_message">Dangerous</string>
+    <string name="unknown_message">Unknown</string>
+    <string name="warning_message">⚠️ Possible %1$s attempt detected.</string>
+    <string name="phishing">phishing</string>
+    <string name="smishing">smishing</string>
+</resources>
