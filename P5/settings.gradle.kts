@@ -19,8 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Application Development"
-include(":app")
-include(":app")
+rootProject.name = "Pr-5"
 include(":app")
  
