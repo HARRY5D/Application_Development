@@ -15,18 +15,11 @@
         <ImageView
             android:id="@+id/affirmationImage"
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="400dp"
             android:scaleType="centerCrop"
             android:contentDescription="Motivational Image" />
 
-        <TextView
-            android:id="@+id/affirmationText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp"
-            android:textAlignment="center"
-            android:textSize="18sp"
-            android:textStyle="italic" />
+
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>

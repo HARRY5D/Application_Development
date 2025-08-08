@@ -2,21 +2,32 @@ package com.example.campus_lost_found
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.SignInButton
+import com.google.android.gms.common.api.ApiException
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.GoogleAuthProvider
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
+    private lateinit var googleSignInClient: GoogleSignInClient
+    private val TAG = "LoginActivity"
 
     // UI elements
     private lateinit var emailLayout: TextInputLayout
@@ -35,6 +46,15 @@ class LoginActivity : AppCompatActivity() {
     private val defaultEmail = "sgp.noreplydce@gmail.com"
     private val defaultPassword = "campus123"
 
+    // Modern Activity Result API for Google Sign-In
+    private val googleSignInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            handleSignInResult(result.data)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -43,20 +63,36 @@ class LoginActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_login)
 
-        // Initialize Firebase Auth
-        auth = FirebaseAuth.getInstance()
+        try {
+            // Initialize Firebase Auth
+            auth = FirebaseAuth.getInstance()
 
-        // Check if user is already signed in
-        if (auth.currentUser != null) {
+            // Configure Google Sign In using the correct client ID from google-services.json
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken("810761260274-qpi92nq7i379d91ob1r2v35f7rpljc42.apps.googleusercontent.com")
+                .requestEmail()
+                .build()
+
+            googleSignInClient = GoogleSignIn.getClient(this, gso)
+
+            // Check if user is already signed in
+            if (auth.currentUser != null) {
+                startMainActivity()
+                return
+            }
+
+            // Initialize views
+            initializeViews()
+
+            // Set up listeners
+            setupListeners()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Critical error during initialization: ${e.message}")
+            Toast.makeText(this, "Error initializing app. Proceeding without authentication.",
+                Toast.LENGTH_LONG).show()
             startMainActivity()
-            return
         }
-
-        // Initialize views
-        initializeViews()
-
-        // Set up listeners
-        setupListeners()
     }
 
     private fun initializeViews() {
@@ -83,105 +119,55 @@ class LoginActivity : AppCompatActivity() {
             startMainActivity()
         }
 
-        // Google Sign-In button - temporarily showing message
+        // Google Sign-In button
         googleSignInButton.setOnClickListener {
-            showGoogleSignInNotAvailableDialog()
+            signInWithGoogle()
         }
 
         // Default email login
         useDefaultEmailText.setOnClickListener {
-            // Just go directly to main activity without authentication
-            Toast.makeText(this, "Proceeding as default user", Toast.LENGTH_SHORT).show()
-            startMainActivity()
+            // First try to sign in with default credentials
+            signInWithEmailPassword(defaultEmail, defaultPassword)
         }
 
         // Regular login button
         loginButton.setOnClickListener {
-            // Try to login, but if it fails, just go to main activity
             val email = emailInput.text.toString().trim()
             val password = passwordInput.text.toString().trim()
 
-            if (!validateInput(email, password)) {
-                return@setOnClickListener
+            if (validateInput(email, password)) {
+                signInWithEmailPassword(email, password)
             }
-
-            setLoading(true)
-
-            // Try to authenticate, but don't block the user if it fails
-            auth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
-                    setLoading(false)
-                    if (task.isSuccessful) {
-                        Toast.makeText(this, "Signed in successfully", Toast.LENGTH_SHORT).show()
-                        startMainActivity()
-                    } else {
-                        // Authentication failed, but let them in anyway
-                        Toast.makeText(this,
-                            "Authentication bypassed: ${task.exception?.message}",
-                            Toast.LENGTH_SHORT).show()
-                        startMainActivity()
-                    }
-                }
         }
 
-        // Create account button
+        // Sign up button
         signupButton.setOnClickListener {
-            // Try to create an account, but if it fails, just go to main activity
             val email = emailInput.text.toString().trim()
             val password = passwordInput.text.toString().trim()
 
-            if (!validateInput(email, password)) {
-                return@setOnClickListener
+            if (validateInput(email, password)) {
+                createAccount(email, password)
             }
-
-            setLoading(true)
-
-            auth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
-                    setLoading(false)
-                    if (task.isSuccessful) {
-                        Toast.makeText(this, "Account created successfully", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(this,
-                            "Account creation bypassed: ${task.exception?.message}",
-                            Toast.LENGTH_SHORT).show()
-                    }
-                    // Whether successful or not, continue to main activity
-                    startMainActivity()
-                }
         }
 
-        // Forgot password link
+        // Forgot password text
         forgotPasswordText.setOnClickListener {
-            // Just show a toast and continue to main activity
-            Toast.makeText(this, "Password recovery bypassed. Continuing to app.",
-                Toast.LENGTH_SHORT).show()
-            startMainActivity()
+            showForgotPasswordDialog()
         }
-    }
-
-    private fun showGoogleSignInNotAvailableDialog() {
-        Toast.makeText(this, "Continuing without Google authentication", Toast.LENGTH_SHORT).show()
-        startMainActivity()
     }
 
     private fun validateInput(email: String, password: String): Boolean {
         var isValid = true
 
-        // Validate email
         if (email.isEmpty()) {
-            emailLayout.error = "Email cannot be empty"
-            isValid = false
-        } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            emailLayout.error = "Please enter a valid email"
+            emailLayout.error = "Email is required"
             isValid = false
         } else {
             emailLayout.error = null
         }
 
-        // Validate password
         if (password.isEmpty()) {
-            passwordLayout.error = "Password cannot be empty"
+            passwordLayout.error = "Password is required"
             isValid = false
         } else if (password.length < 6) {
             passwordLayout.error = "Password must be at least 6 characters"
@@ -193,29 +179,189 @@ class LoginActivity : AppCompatActivity() {
         return isValid
     }
 
-    private fun setLoading(isLoading: Boolean) {
-        if (isLoading) {
-            progressBar.visibility = View.VISIBLE
-            loginButton.isEnabled = false
-            signupButton.isEnabled = false
-            googleSignInButton.isEnabled = false
-            useDefaultEmailText.isEnabled = false
-            forgotPasswordText.isEnabled = false
-            skipButton.isEnabled = false
-        } else {
-            progressBar.visibility = View.GONE
-            loginButton.isEnabled = true
-            signupButton.isEnabled = true
-            googleSignInButton.isEnabled = true
-            useDefaultEmailText.isEnabled = true
-            forgotPasswordText.isEnabled = true
-            skipButton.isEnabled = true
+    private fun signInWithGoogle() {
+        try {
+            showProgress(true)
+            val signInIntent = googleSignInClient.signInIntent
+            googleSignInLauncher.launch(signInIntent)
+        } catch (e: Exception) {
+            showProgress(false)
+            Log.e(TAG, "Error starting Google Sign-In: ${e.message}")
+            Toast.makeText(
+                this,
+                "Google Sign-In is not available. Proceeding without authentication.",
+                Toast.LENGTH_LONG
+            ).show()
+            // Just proceed to main activity instead of showing dialog
+            startMainActivity()
         }
+    }
+
+    private fun signInWithEmailPassword(email: String, password: String) {
+        showProgress(true)
+
+        auth.signInWithEmailAndPassword(email, password)
+            .addOnCompleteListener(this) { task ->
+                showProgress(false)
+                if (task.isSuccessful) {
+                    Log.d(TAG, "signInWithEmail:success")
+                    startMainActivity()
+                } else {
+                    Log.w(TAG, "signInWithEmail:failure", task.exception)
+
+                    // Provide more specific error messages
+                    when (task.exception) {
+                        is FirebaseAuthInvalidUserException -> {
+                            // If using the default email and it fails, create the account
+                            if (email == defaultEmail) {
+                                createAccount(defaultEmail, defaultPassword)
+                            } else {
+                                Toast.makeText(this, "User does not exist. Please create an account first.",
+                                    Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        is FirebaseAuthInvalidCredentialsException -> {
+                            Toast.makeText(this, "Invalid password. Please try again.",
+                                Toast.LENGTH_SHORT).show()
+                        }
+                        else -> {
+                            Toast.makeText(this, "Authentication failed: ${task.exception?.message}",
+                                Toast.LENGTH_SHORT).show()
+
+                            // Show dialog offering alternatives
+                            showAuthenticationFailedDialog()
+                        }
+                    }
+                }
+            }
+    }
+
+    private fun createAccount(email: String, password: String) {
+        showProgress(true)
+
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener(this) { task ->
+                showProgress(false)
+                if (task.isSuccessful) {
+                    Log.d(TAG, "createUserWithEmail:success")
+                    Toast.makeText(this, "Account created successfully!", Toast.LENGTH_SHORT).show()
+                    startMainActivity()
+                } else {
+                    Log.w(TAG, "createUserWithEmail:failure", task.exception)
+                    Toast.makeText(this, "Registration failed: ${task.exception?.message}",
+                        Toast.LENGTH_SHORT).show()
+
+                    // If everything fails, offer to proceed without authentication
+                    showAuthenticationFailedDialog()
+                }
+            }
+    }
+
+    private fun showForgotPasswordDialog() {
+        val emailInput = EditText(this)
+        emailInput.hint = "Enter your email"
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Reset Password")
+            .setMessage("Enter your email to receive a password reset link")
+            .setView(emailInput)
+            .setPositiveButton("Send") { _, _ ->
+                val email = emailInput.text.toString().trim()
+                if (email.isNotEmpty()) {
+                    resetPassword(email)
+                } else {
+                    Toast.makeText(this, "Email cannot be empty", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun resetPassword(email: String) {
+        showProgress(true)
+
+        auth.sendPasswordResetEmail(email)
+            .addOnCompleteListener { task ->
+                showProgress(false)
+                if (task.isSuccessful) {
+                    Toast.makeText(this, "Reset link sent to your email", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Failed to send reset email: ${task.exception?.message}",
+                        Toast.LENGTH_SHORT).show()
+                }
+            }
+    }
+
+    private fun showAuthenticationFailedDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Authentication Failed")
+            .setMessage("Would you like to continue without signing in? Some features may be limited.")
+            .setPositiveButton("Continue Without Sign In") { _, _ ->
+                startMainActivity()
+            }
+            .setNegativeButton("Try Again", null)
+            .show()
+    }
+
+    private fun showGoogleSignInNotAvailableDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Google Sign-In Not Available")
+            .setMessage("Please use email/password authentication or proceed without authentication.")
+            .setPositiveButton("Skip Authentication") { _, _ ->
+                startMainActivity()
+            }
+            .setNegativeButton("Try Email/Password", null)
+            .show()
+    }
+
+    private fun handleSignInResult(data: Intent?) {
+        try {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            val account = task.getResult(ApiException::class.java)
+            if (account != null && account.idToken != null) {
+                firebaseAuthWithGoogle(account.idToken!!)
+            } else {
+                throw Exception("Google account or token is null")
+            }
+        } catch (e: ApiException) {
+            showProgress(false)
+            Log.w(TAG, "Google sign in failed: ${e.statusCode}", e)
+            Toast.makeText(this, "Google Sign-In failed. Proceeding without authentication.",
+                Toast.LENGTH_SHORT).show()
+            startMainActivity()
+        } catch (e: Exception) {
+            showProgress(false)
+            Log.e(TAG, "Unexpected error in Google Sign-In: ${e.message}")
+            startMainActivity()
+        }
+    }
+
+    private fun firebaseAuthWithGoogle(idToken: String) {
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener(this) { task ->
+                showProgress(false)
+                if (task.isSuccessful) {
+                    Log.d(TAG, "signInWithCredential:success")
+                    startMainActivity()
+                } else {
+                    Log.w(TAG, "signInWithCredential:failure", task.exception)
+                    Toast.makeText(this, "Google authentication failed: ${task.exception?.message}",
+                        Toast.LENGTH_SHORT).show()
+
+                    // If Google auth fails, show dialog offering alternatives
+                    showAuthenticationFailedDialog()
+                }
+            }
+    }
+
+    private fun showProgress(show: Boolean) {
+        progressBar.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     private fun startMainActivity() {
         val intent = Intent(this, MainActivity::class.java)
         startActivity(intent)
-        finish() // Close the login activity
+        finish()
     }
 }

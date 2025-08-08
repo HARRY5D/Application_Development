@@ -6,12 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.Spinner
-import android.widget.TextView
+import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
@@ -23,10 +18,11 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageException
+import com.google.firebase.storage.UploadTask
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 class ReportItemActivity : AppCompatActivity() {
 
@@ -43,7 +39,7 @@ class ReportItemActivity : AppCompatActivity() {
     private lateinit var submitButton: Button
 
     private val itemRepository = ItemRepository()
-    private val storageRef = FirebaseStorage.getInstance().reference
+    private val storage = FirebaseStorage.getInstance()
     private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
     private var isLostItem = true
@@ -256,24 +252,32 @@ class ReportItemActivity : AppCompatActivity() {
     }
 
     private fun uploadImageAndSaveItem() {
-        val imageRef = storageRef.child("item_images/${UUID.randomUUID()}.jpg")
-
         imageUri?.let { uri ->
-            submitButton.isEnabled = false
-            submitButton.text = "Uploading..."
+            val filename = "images/${System.currentTimeMillis()}_${currentUserId}.jpg"
+            val imageRef = storage.reference.child(filename)
 
-            imageRef.putFile(uri)
-                .addOnSuccessListener {
-                    imageRef.downloadUrl.addOnSuccessListener { downloadUri ->
-                        imageUrl = downloadUri.toString()
-                        saveItem()
-                    }
+            val uploadTask = imageRef.putFile(uri)
+
+            // Show progress
+            Toast.makeText(this, "Uploading image...", Toast.LENGTH_SHORT).show()
+
+            uploadTask.addOnProgressListener { taskSnapshot: UploadTask.TaskSnapshot ->
+                val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toInt()
+                // You could update a progress bar here if you have one
+            }.addOnFailureListener { exception: Exception ->
+                showErrorDialog("Failed to upload image: ${exception.message}")
+            }.addOnSuccessListener { taskSnapshot: UploadTask.TaskSnapshot ->
+                // Get download URL
+                imageRef.downloadUrl.addOnSuccessListener { downloadUri ->
+                    imageUrl = downloadUri.toString()
+                    saveItem()
+                }.addOnFailureListener { exception: Exception ->
+                    showErrorDialog("Failed to get image URL: ${exception.message}")
                 }
-                .addOnFailureListener { e ->
-                    submitButton.isEnabled = true
-                    submitButton.text = if (editingExistingItem) "Update" else "Submit"
-                    showErrorDialog("Failed to upload image: ${e.message}")
-                }
+            }
+        } ?: run {
+            // No image selected, just save the item
+            saveItem()
         }
     }
 

@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Pr-5</string>
+    <string name="affirmation1">I am strong.</string>
+    <string name="affirmation2">I believe in myself.</string>
+    <string name="affirmation3">Each day is a new opportunity to grow.</string>
+    <string name="affirmation4">Every challenge in my life helps me grow.</string>
+    <string name="affirmation5">I have courage and confidence.</string>
 </resources>

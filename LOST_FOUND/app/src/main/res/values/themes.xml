@@ -32,9 +32,13 @@
         <item name="colorOutline">@color/outline</item>
 
         <!-- Status bar and navigation bar styling -->
-        <item name="android:statusBarColor">@color/surface</item>
+        <item name="android:statusBarColor">@color/primary</item>
         <item name="android:navigationBarColor">@color/surface</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Prevent content from drawing under the status bar -->
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:fitsSystemWindows">true</item>
     </style>
 
     <style name="Theme.CAMPUS_LOST_FOUND" parent="Base.Theme.CAMPUS_LOST_FOUND" />

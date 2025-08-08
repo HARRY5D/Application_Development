@@ -4,18 +4,27 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context=".LostItemsFragment">
 
-    <SearchView
-        android:id="@+id/searchView"
+    <!-- Search Filter Container -->
+    <LinearLayout
+        android:id="@+id/search_filter_container"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="8dp"
-        android:iconifiedByDefault="false"
-        android:queryHint="Search items..."
+        android:orientation="vertical"
+        android:padding="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <SearchView
+            android:id="@+id/searchView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:iconifiedByDefault="false"
+            android:queryHint="Search items..." />
+    </LinearLayout>
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/myReportsTabLayout"
@@ -24,7 +33,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/searchView"
+        app:layout_constraintTop_toBottomOf="@id/search_filter_container"
         tools:visibility="visible" />
 
     <androidx.recyclerview.widget.RecyclerView
@@ -40,11 +49,25 @@
         tools:listitem="@layout/item_card" />
 
     <TextView
-        android:id="@+id/noItemsTextView"
+        android:id="@+id/empty_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="No items found"
-        android:textSize="18sp"
+        android:textSize="16sp"
+        android:textColor="@color/on_surface"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/noItemsTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="No items to display"
+        android:textSize="16sp"
+        android:textColor="@color/on_surface"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

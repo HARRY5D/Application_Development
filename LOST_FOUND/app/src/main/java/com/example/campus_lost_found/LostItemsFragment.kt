@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.SearchView
+import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -13,8 +13,6 @@ import com.example.campus_lost_found.model.LostItem
 import com.example.campus_lost_found.repository.ItemRepository
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.QuerySnapshot
 
 class LostItemsFragment : Fragment() {
 
@@ -93,12 +91,14 @@ class LostItemsFragment : Fragment() {
 
     private fun updateRecyclerView(items: List<LostItem>) {
         val adapter = ItemsAdapter(
-            items = items,
+            items = items.toMutableList(),
             isLostItemsList = true,
             currentUserId = currentUserId,
             onItemClick = { item ->
-                // Show item details
                 showItemDetailsDialog(item as LostItem)
+            },
+            onClaimButtonClick = { item ->
+                handleClaimRequest(item as LostItem)
             }
         )
         recyclerView.adapter = adapter
@@ -118,6 +118,34 @@ class LostItemsFragment : Fragment() {
             .setTitle("Item Details")
             .setMessage(message)
             .setPositiveButton("Close", null)
+            .show()
+    }
+
+    private fun handleClaimRequest(item: LostItem) {
+        if (currentUserId.isEmpty()) {
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Authentication Required")
+                .setMessage("Please sign in to contact the reporter.")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Contact Reporter")
+            .setMessage("Do you think this item belongs to you? Contact the person who reported it lost.")
+            .setPositiveButton("Contact") { _, _ ->
+                showContactInfoDialog(item)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showContactInfoDialog(item: LostItem) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Contact Information")
+            .setMessage("Reporter: ${item.reportedByName}\n\nNote: In a full implementation, this would show contact details or open an in-app messaging system.")
+            .setPositiveButton("OK", null)
             .show()
     }
 

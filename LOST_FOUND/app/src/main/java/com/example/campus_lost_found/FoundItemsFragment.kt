@@ -4,17 +4,15 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.SearchView
+import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.campus_lost_found.adapter.ItemsAdapter
 import com.example.campus_lost_found.model.FoundItem
-import com.example.campus_lost_found.model.Item
 import com.example.campus_lost_found.repository.ItemRepository
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 
 class FoundItemsFragment : Fragment() {
 
@@ -96,7 +94,7 @@ class FoundItemsFragment : Fragment() {
 
     private fun updateRecyclerView(items: List<FoundItem>) {
         val adapter = ItemsAdapter(
-            items = items,
+            items = items.toMutableList(),
             isLostItemsList = false,
             currentUserId = currentUserId,
             onItemClick = { item ->

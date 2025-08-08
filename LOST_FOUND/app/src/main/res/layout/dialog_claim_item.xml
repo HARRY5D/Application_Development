@@ -5,26 +5,33 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <com.google.android.material.textfield.TextInputLayout
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Message to the finder (optional)">
+        android:text="Please provide your contact information so the finder can reach you to arrange pickup."
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:layout_marginBottom="16dp" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:hint="Contact information (phone, email, etc.)">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/claimMessageEditText"
+            android:id="@+id/contactInfoEditText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="top"
             android:inputType="textMultiLine"
-            android:lines="3" />
+            android:maxLines="3" />
+
     </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Please provide any additional details that might help verify your ownership of the item."
-        android:textSize="14sp" />
+        android:text="The person who found this item will be notified of your claim request."
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textColor="?attr/colorOnSurfaceVariant" />
 
 </LinearLayout>

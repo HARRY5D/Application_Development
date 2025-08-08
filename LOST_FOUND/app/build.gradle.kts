@@ -10,8 +10,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.campus_lost_found"
-        minSdk = 35
-        targetSdk = 35
+        minSdk = 26
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -49,14 +49,18 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.firebase:firebase-storage")  // Added Firebase Storage
 
-    // Google Sign-In
-    implementation("com.google.android.gms:play-services-auth:21.0.0")
+    // Navigation Component (required for NavHostFragment)
+    implementation("androidx.navigation:navigation-fragment-ktx:2.7.6")
+    implementation("androidx.navigation:navigation-ui-ktx:2.7.6")
 
-    // For image loading
+    // Image loading with Glide (required for ItemsAdapter)
     implementation("com.github.bumptech.glide:glide:4.16.0")
     annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
+
+    // Google Play Services Auth (required for Google Sign-In)
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

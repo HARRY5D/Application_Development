@@ -1,7 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.CAMPUS_LOST_FOUND" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
+    <!-- Dark theme (night) - inherit from the base theme -->
+    <style name="Theme.CAMPUS_LOST_FOUND" parent="Base.Theme.CAMPUS_LOST_FOUND">
+        <!-- Dark theme color overrides -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/on_primary</item>
         <item name="colorPrimaryContainer">@color/primary_container</item>
@@ -31,8 +32,8 @@
         <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
         <item name="colorOutline">@color/outline</item>
 
-        <!-- Status bar and navigation bar styling -->
-        <item name="android:statusBarColor">@color/surface</item>
+        <!-- Status bar and navigation bar styling for dark theme -->
+        <item name="android:statusBarColor">@color/primary</item>
         <item name="android:navigationBarColor">@color/surface</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
