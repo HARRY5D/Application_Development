@@ -5,21 +5,22 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.campus_lost_found.model.FoundItem
 import com.example.campus_lost_found.model.LostItem
 import com.example.campus_lost_found.repository.ItemRepository
+import com.example.campus_lost_found.utils.SupabaseManager
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.StorageException
-import com.google.firebase.storage.UploadTask
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -39,7 +40,6 @@ class ReportItemActivity : AppCompatActivity() {
     private lateinit var submitButton: Button
 
     private val itemRepository = ItemRepository()
-    private val storage = FirebaseStorage.getInstance()
     private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
     private var isLostItem = true
@@ -195,11 +195,13 @@ class ReportItemActivity : AppCompatActivity() {
     }
 
     private fun setCategorySpinnerSelection(category: String) {
-        val adapter = categorySpinner.adapter as ArrayAdapter<String>
-        for (i in 0 until adapter.count) {
-            if (adapter.getItem(i) == category) {
-                categorySpinner.setSelection(i)
-                break
+        val adapter = categorySpinner.adapter as? ArrayAdapter<String>
+        adapter?.let {
+            for (i in 0 until it.count) {
+                if (it.getItem(i) == category) {
+                    categorySpinner.setSelection(i)
+                    break
+                }
             }
         }
     }
@@ -251,28 +253,45 @@ class ReportItemActivity : AppCompatActivity() {
         return true
     }
 
+    // Supabase image upload (replaces Firebase Storage)
     private fun uploadImageAndSaveItem() {
         imageUri?.let { uri ->
-            val filename = "images/${System.currentTimeMillis()}_${currentUserId}.jpg"
-            val imageRef = storage.reference.child(filename)
+            // Show loading state
+            submitButton.isEnabled = false
+            submitButton.text = "Uploading..."
+            Toast.makeText(this, "Uploading image to Supabase...", Toast.LENGTH_SHORT).show()
 
-            val uploadTask = imageRef.putFile(uri)
+            lifecycleScope.launch {
+                try {
+                    val result = SupabaseManager.getInstance().uploadImage(
+                        context = this@ReportItemActivity,
+                        imageUri = uri,
+                        userId = currentUserId
+                    )
 
-            // Show progress
-            Toast.makeText(this, "Uploading image...", Toast.LENGTH_SHORT).show()
-
-            uploadTask.addOnProgressListener { taskSnapshot: UploadTask.TaskSnapshot ->
-                val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toInt()
-                // You could update a progress bar here if you have one
-            }.addOnFailureListener { exception: Exception ->
-                showErrorDialog("Failed to upload image: ${exception.message}")
-            }.addOnSuccessListener { taskSnapshot: UploadTask.TaskSnapshot ->
-                // Get download URL
-                imageRef.downloadUrl.addOnSuccessListener { downloadUri ->
-                    imageUrl = downloadUri.toString()
-                    saveItem()
-                }.addOnFailureListener { exception: Exception ->
-                    showErrorDialog("Failed to get image URL: ${exception.message}")
+                    result.onSuccess { url ->
+                        imageUrl = url
+                        runOnUiThread {
+                            Toast.makeText(this@ReportItemActivity, "Image uploaded successfully!", Toast.LENGTH_SHORT).show()
+                            saveItem()
+                        }
+                    }.onFailure { exception ->
+                        runOnUiThread {
+                            Log.e("ReportItem", "Supabase upload failed: ${exception.message}")
+                            showErrorDialog("Failed to upload image: ${exception.message}")
+                            // Reset button state
+                            submitButton.isEnabled = true
+                            submitButton.text = if (editingExistingItem) "Update" else "Submit"
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Log.e("ReportItem", "Error during Supabase upload: ${e.message}")
+                        showErrorDialog("Error uploading image: ${e.message}")
+                        // Reset button state
+                        submitButton.isEnabled = true
+                        submitButton.text = if (editingExistingItem) "Update" else "Submit"
+                    }
                 }
             }
         } ?: run {

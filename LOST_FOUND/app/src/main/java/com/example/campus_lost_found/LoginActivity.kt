@@ -58,22 +58,20 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Force apply the dark theme
-        setTheme(R.style.Theme_CAMPUS_LOST_FOUND)
-
-        setContentView(R.layout.activity_login)
-
         try {
-            // Initialize Firebase Auth
+            // Force apply the dark theme
+            setTheme(R.style.Theme_CAMPUS_LOST_FOUND)
+            setContentView(R.layout.activity_login)
+
+            // Check if Firebase is properly initialized
+            if (!CampusLostFoundApplication.isFirebaseInitialized) {
+                Log.w(TAG, "Firebase not initialized, proceeding without authentication")
+                showFirebaseUnavailableDialog()
+                return
+            }
+
+            // Initialize Firebase Auth first
             auth = FirebaseAuth.getInstance()
-
-            // Configure Google Sign In using the correct client ID from google-services.json
-            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken("810761260274-qpi92nq7i379d91ob1r2v35f7rpljc42.apps.googleusercontent.com")
-                .requestEmail()
-                .build()
-
-            googleSignInClient = GoogleSignIn.getClient(this, gso)
 
             // Check if user is already signed in
             if (auth.currentUser != null) {
@@ -81,32 +79,49 @@ class LoginActivity : AppCompatActivity() {
                 return
             }
 
-            // Initialize views
-            initializeViews()
+            // Initialize views safely
+            initializeViewsSafely()
 
             // Set up listeners
             setupListeners()
 
         } catch (e: Exception) {
             Log.e(TAG, "Critical error during initialization: ${e.message}")
-            Toast.makeText(this, "Error initializing app. Proceeding without authentication.",
-                Toast.LENGTH_LONG).show()
+            // If anything fails, just go to main activity
             startMainActivity()
         }
     }
 
-    private fun initializeViews() {
-        emailLayout = findViewById(R.id.emailLayout)
-        passwordLayout = findViewById(R.id.passwordLayout)
-        emailInput = findViewById(R.id.emailInput)
-        passwordInput = findViewById(R.id.passwordInput)
-        loginButton = findViewById(R.id.loginButton)
-        signupButton = findViewById(R.id.signupButton)
-        forgotPasswordText = findViewById(R.id.forgotPasswordText)
-        useDefaultEmailText = findViewById(R.id.useDefaultEmailText)
-        progressBar = findViewById(R.id.progressBar)
-        googleSignInButton = findViewById(R.id.googleSignInButton)
-        skipButton = findViewById(R.id.skipButton)
+    private fun initializeViewsSafely() {
+        try {
+            emailLayout = findViewById(R.id.emailLayout)
+            passwordLayout = findViewById(R.id.passwordLayout)
+            emailInput = findViewById(R.id.emailInput)
+            passwordInput = findViewById(R.id.passwordInput)
+            loginButton = findViewById(R.id.loginButton)
+            signupButton = findViewById(R.id.signupButton)
+            forgotPasswordText = findViewById(R.id.forgotPasswordText)
+            useDefaultEmailText = findViewById(R.id.useDefaultEmailText)
+            progressBar = findViewById(R.id.progressBar)
+            skipButton = findViewById(R.id.skipButton)
+
+            // Initialize Google Sign-In safely
+            try {
+                googleSignInButton = findViewById(R.id.googleSignInButton)
+                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestIdToken("810761260274-qpi92nq7i379d91ob1r2v35f7rpljc42.apps.googleusercontent.com")
+                    .requestEmail()
+                    .build()
+                googleSignInClient = GoogleSignIn.getClient(this, gso)
+            } catch (e: Exception) {
+                Log.e(TAG, "Google Sign-In initialization failed: ${e.message}")
+                // Hide Google Sign-In button if it fails
+                findViewById<View>(R.id.googleSignInButton)?.visibility = View.GONE
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "View initialization failed: ${e.message}")
+            throw e
+        }
     }
 
     private fun setupListeners() {
@@ -363,5 +378,19 @@ class LoginActivity : AppCompatActivity() {
         val intent = Intent(this, MainActivity::class.java)
         startActivity(intent)
         finish()
+    }
+
+    private fun showFirebaseUnavailableDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Authentication Unavailable")
+            .setMessage("Firebase services are not available. You can still use the app with limited functionality.")
+            .setPositiveButton("Continue") { _, _ ->
+                startMainActivity()
+            }
+            .setNegativeButton("Exit") { _, _ ->
+                finish()
+            }
+            .setCancelable(false)
+            .show()
     }
 }

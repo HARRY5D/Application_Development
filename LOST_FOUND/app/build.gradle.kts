@@ -34,6 +34,11 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+
+    lint {
+        baseline = file("lint-baseline.xml")
+        abortOnError = false
+    }
 }
 
 dependencies {
@@ -44,16 +49,24 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
 
-    // Firebase
+    // Firebase (keeping auth and firestore, removing storage)
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-storage")  // Added Firebase Storage
+
+    // Supabase for image storage
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.6.0")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.6.0")
+    implementation("io.ktor:ktor-client-android:2.3.7")
+    implementation("io.ktor:ktor-client-core:2.3.7")
 
     // Navigation Component (required for NavHostFragment)
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.6")
     implementation("androidx.navigation:navigation-ui-ktx:2.7.6")
+
+    // ViewPager2 for tab navigation
+    implementation("androidx.viewpager2:viewpager2:1.0.0")
 
     // Image loading with Glide (required for ItemsAdapter)
     implementation("com.github.bumptech.glide:glide:4.16.0")

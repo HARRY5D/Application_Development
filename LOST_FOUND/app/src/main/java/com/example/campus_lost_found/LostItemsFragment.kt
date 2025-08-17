@@ -1,6 +1,7 @@
 package com.example.campus_lost_found
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -34,17 +35,38 @@ class LostItemsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        recyclerView = view.findViewById(R.id.itemsRecyclerView)
-        searchView = view.findViewById(R.id.searchView)
+        try {
+            // Safe view initialization with null checks
+            recyclerView = view.findViewById(R.id.itemsRecyclerView) ?: throw IllegalStateException("RecyclerView not found")
+            searchView = view.findViewById(R.id.searchView) ?: throw IllegalStateException("SearchView not found")
 
-        setupRecyclerView()
-        setupSearch()
-        loadLostItems()
+            setupRecyclerView()
+            setupSearch()
+            loadLostItems()
+
+        } catch (e: Exception) {
+            Log.e("LostItemsFragment", "Error in onViewCreated: ${e.message}")
+            // Show error to user instead of crashing
+            android.widget.Toast.makeText(requireContext(), "Error loading fragment", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun setupRecyclerView() {
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        recyclerView.setHasFixedSize(true)
+        try {
+            recyclerView.layoutManager = LinearLayoutManager(requireContext())
+            recyclerView.setHasFixedSize(true)
+
+            // Set empty adapter initially to prevent crashes
+            recyclerView.adapter = ItemsAdapter(
+                items = mutableListOf(),
+                isLostItemsList = true,
+                currentUserId = currentUserId,
+                onItemClick = { },
+                onClaimButtonClick = { }
+            )
+        } catch (e: Exception) {
+            Log.e("LostItemsFragment", "Error setting up RecyclerView: ${e.message}")
+        }
     }
 
     private fun setupSearch() {
@@ -78,14 +100,30 @@ class LostItemsFragment : Fragment() {
     }
 
     private fun loadLostItems() {
+        Log.d("LostItemsFragment", "Loading lost items from all users...")
+
         itemRepository.getLostItems().get()
             .addOnSuccessListener { snapshot ->
+                Log.d("LostItemsFragment", "Successfully loaded ${snapshot.size()} lost items")
                 val items = snapshot.toObjects(LostItem::class.java)
+
+                // Debug: Log each item to see what's being loaded
+                items.forEachIndexed { index, item ->
+                    Log.d("LostItemsFragment", "Item $index: ${item.name} by ${item.reportedByName} (${item.reportedBy})")
+                }
+
                 lostItems = items
                 updateRecyclerView(items)
+
+                // Show empty state if no items
+                if (items.isEmpty()) {
+                    showEmptyState("No lost items found. Be the first to report!")
+                }
             }
             .addOnFailureListener { exception ->
+                Log.e("LostItemsFragment", "Failed to load lost items: ${exception.message}")
                 showErrorDialog("Failed to load lost items: ${exception.message}")
+                showEmptyState("Failed to load items. Please check your connection.")
             }
     }
 
@@ -155,6 +193,11 @@ class LostItemsFragment : Fragment() {
             .setMessage(message)
             .setPositiveButton("OK", null)
             .show()
+    }
+
+    private fun showEmptyState(message: String) {
+        // You can add an empty state view here if needed
+        android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_LONG).show()
     }
 
     override fun onResume() {

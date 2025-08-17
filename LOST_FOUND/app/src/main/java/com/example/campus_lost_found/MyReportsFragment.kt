@@ -2,6 +2,7 @@ package com.example.campus_lost_found
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -43,20 +44,81 @@ class MyReportsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        recyclerView = view.findViewById(R.id.itemsRecyclerView)
-        searchView = view.findViewById(R.id.searchView)
-        tabLayout = view.findViewById(R.id.myReportsTabLayout)
-        noItemsTextView = view.findViewById(R.id.empty_view)
+        try {
+            Log.d("MyReportsFragment", "Starting onViewCreated")
 
-        setupRecyclerView()
-        setupTabLayout()
-        setupSearch()
-        loadMyItems()
+            // Safe view initialization with null checks
+            recyclerView = view.findViewById(R.id.itemsRecyclerView) ?: throw IllegalStateException("RecyclerView not found")
+            searchView = view.findViewById(R.id.searchView) ?: throw IllegalStateException("SearchView not found")
+
+            // TabLayout might not exist in fragment_items_list, so make it optional
+            tabLayout = view.findViewById(R.id.myReportsTabLayout) ?: let {
+                Log.w("MyReportsFragment", "myReportsTabLayout not found, creating programmatically")
+                createTabLayoutProgrammatically(view)
+            }
+
+            noItemsTextView = view.findViewById(R.id.empty_view) ?: throw IllegalStateException("Empty view not found")
+
+            setupRecyclerView()
+            setupTabLayout()
+            setupSearch()
+            loadMyItems()
+
+            Log.d("MyReportsFragment", "onViewCreated completed successfully")
+
+        } catch (e: Exception) {
+            Log.e("MyReportsFragment", "Error in onViewCreated: ${e.message}", e)
+            // Show error to user instead of crashing
+            android.widget.Toast.makeText(requireContext(), "Loading My Reports...", android.widget.Toast.LENGTH_SHORT).show()
+            // Try to load without tabs
+            setupBasicView()
+        }
+    }
+
+    private fun createTabLayoutProgrammatically(parentView: View): TabLayout {
+        val tabLayout = TabLayout(requireContext())
+        tabLayout.id = View.generateViewId()
+
+        // Add to the parent layout if possible
+        val parent = parentView as? ViewGroup
+        parent?.addView(tabLayout, 0) // Add at the top
+
+        return tabLayout
+    }
+
+    private fun setupBasicView() {
+        try {
+            // Simple setup without tabs
+            recyclerView.layoutManager = LinearLayoutManager(requireContext())
+            recyclerView.adapter = ItemsAdapter(
+                items = mutableListOf(),
+                isLostItemsList = true,
+                currentUserId = currentUserId,
+                onItemClick = { },
+                onClaimButtonClick = { }
+            )
+            loadMyItems()
+        } catch (e: Exception) {
+            Log.e("MyReportsFragment", "Even basic setup failed: ${e.message}")
+        }
     }
 
     private fun setupRecyclerView() {
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        recyclerView.setHasFixedSize(true)
+        try {
+            recyclerView.layoutManager = LinearLayoutManager(requireContext())
+            recyclerView.setHasFixedSize(true)
+
+            // Set empty adapter initially to prevent crashes
+            recyclerView.adapter = ItemsAdapter(
+                items = mutableListOf(),
+                isLostItemsList = true,
+                currentUserId = currentUserId,
+                onItemClick = { },
+                onClaimButtonClick = { }
+            )
+        } catch (e: Exception) {
+            Log.e("MyReportsFragment", "Error setting up RecyclerView: ${e.message}")
+        }
     }
 
     private fun setupTabLayout() {

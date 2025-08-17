@@ -13,15 +13,51 @@
         android:layout_height="wrap_content"
         android:fitsSystemWindows="true">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
+        <!-- Toolbar with logout button -->
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Campus Lost &amp; Found"
-            app:titleTextColor="?attr/colorOnPrimary" />
+            android:background="?attr/colorPrimary">
+
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_toStartOf="@id/logoutButton"
+                app:title="Campus Lost &amp; Found"
+                app:titleTextColor="?attr/colorOnPrimary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/logoutButton"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="8dp"
+                android:text="@string/logout"
+                android:textColor="?attr/colorOnPrimary"
+                android:textSize="12sp"
+                app:icon="@drawable/ic_logout"
+                app:iconSize="16dp"
+                app:iconTint="?attr/colorOnPrimary" />
+
+        </RelativeLayout>
+
+        <!-- Tab Layout moved to top -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/mainTabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/colorPrimary"
+            app:tabTextColor="?attr/colorOnPrimary"
+            app:tabSelectedTextColor="?attr/colorOnPrimary"
+            app:tabIndicatorColor="?attr/colorOnPrimary"
+            app:tabMode="fixed" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- Main content area -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
         android:name="androidx.navigation.fragment.NavHostFragment"
@@ -31,54 +67,15 @@
         app:defaultNavHost="true"
         app:navGraph="@navigation/nav_graph" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/logoutButton"
-        android:layout_width="wrap_content"
-        android:layout_height="48dp"
-        android:layout_gravity="top|end"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:paddingHorizontal="16dp"
-        android:text="@string/logout"
-        android:textColor="@android:color/white"
-        android:textSize="14sp"
-        android:elevation="4dp"
-        app:backgroundTint="@color/logout_button_color"
-        app:cornerRadius="24dp"
-        app:icon="@drawable/ic_logout"
-        app:iconSize="18dp"
-        app:iconTint="@android:color/white"
-        app:rippleColor="@color/logout_button_ripple"
-        app:strokeWidth="0dp" />
-
-    <com.google.android.material.bottomappbar.BottomAppBar
-        android:id="@+id/bottomAppBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        app:backgroundTint="?attr/colorSurfaceVariant"
-        app:fabCradleMargin="8dp"
-        app:fabCradleRoundedCornerRadius="16dp"
-        app:fabCradleVerticalOffset="6dp" />
-
+    <!-- FAB for adding items -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabAddItem"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
         android:contentDescription="@string/add_item"
-        app:layout_anchor="@id/bottomAppBar"
         app:srcCompat="@drawable/ic_add"
         app:tint="?attr/colorOnPrimary" />
-
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNavigation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        app:backgroundTint="?attr/colorSurfaceVariant"
-        app:itemIconTint="?attr/colorOnSurfaceVariant"
-        app:itemTextColor="?attr/colorOnSurfaceVariant"
-        app:menu="@menu/bottom_navigation_menu" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
