@@ -14,7 +14,8 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.campus_lost_found.model.FoundItem
 import com.example.campus_lost_found.model.LostItem
-import com.example.campus_lost_found.repository.ItemRepository
+import com.example.campus_lost_found.repository.SupabaseItemRepository
+import com.example.campus_lost_found.repository.SupabaseRepository
 import com.example.campus_lost_found.utils.SupabaseManager
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -24,6 +25,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 class ReportItemActivity : AppCompatActivity() {
 
@@ -39,7 +41,7 @@ class ReportItemActivity : AppCompatActivity() {
     private lateinit var uploadImageButton: Button
     private lateinit var submitButton: Button
 
-    private val itemRepository = ItemRepository()
+    private val itemRepository = SupabaseRepository()
     private val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
     private var isLostItem = true
@@ -49,18 +51,30 @@ class ReportItemActivity : AppCompatActivity() {
     private var editItemId: String? = null
     private var editingExistingItem = false
 
-    private val currentUserId: String
-        get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-    private val currentUserName: String
-        get() = FirebaseAuth.getInstance().currentUser?.displayName ?: "Anonymous User"
+    companion object {
+        const val EXTRA_IS_LOST_ITEM = "is_lost_item"
+        const val EXTRA_EDIT_ITEM_ID = "edit_item_id"
 
-    private val getContent = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        fun createIntent(context: Context, isLostItem: Boolean): Intent {
+            return Intent(context, ReportItemActivity::class.java).apply {
+                putExtra(EXTRA_IS_LOST_ITEM, isLostItem)
+            }
+        }
+
+        fun createEditIntent(context: Context, isLostItem: Boolean, itemId: String): Intent {
+            return Intent(context, ReportItemActivity::class.java).apply {
+                putExtra(EXTRA_IS_LOST_ITEM, isLostItem)
+                putExtra(EXTRA_EDIT_ITEM_ID, itemId)
+            }
+        }
+    }
+
+    private val imagePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
         uri?.let {
             imageUri = it
-            Glide.with(this)
-                .load(uri)
-                .centerCrop()
-                .into(itemImageView)
+            itemImageView.setImageURI(it)
             itemImageView.visibility = View.VISIBLE
         }
     }
@@ -69,22 +83,21 @@ class ReportItemActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_report_item)
 
-        // Get intent data
-        isLostItem = intent.getBooleanExtra("isLostItem", true)
-        editItemId = intent.getStringExtra("itemId")
+        // Get intent extras
+        isLostItem = intent.getBooleanExtra(EXTRA_IS_LOST_ITEM, true)
+        editItemId = intent.getStringExtra(EXTRA_EDIT_ITEM_ID)
         editingExistingItem = editItemId != null
 
-        // Initialize views
-        initViews()
+        initializeViews()
         setupUI()
+        setupEventListeners()
 
-        // Load item data if editing
         if (editingExistingItem) {
-            loadItemData()
+            loadItemForEditing()
         }
     }
 
-    private fun initViews() {
+    private fun initializeViews() {
         titleTextView = findViewById(R.id.reportTitleTextView)
         nameEditText = findViewById(R.id.itemNameEditText)
         descriptionEditText = findViewById(R.id.itemDescriptionEditText)
@@ -99,285 +112,279 @@ class ReportItemActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        // Set title based on mode
-        val titleText = if (editingExistingItem) {
-            if (isLostItem) "Edit Lost Item" else "Edit Found Item"
+        // Set title and button text based on item type and editing state
+        if (editingExistingItem) {
+            titleTextView.text = if (isLostItem) "Edit Lost Item" else "Edit Found Item"
+            submitButton.text = "Update Item"
         } else {
-            if (isLostItem) "Report Lost Item" else "Report Found Item"
+            titleTextView.text = if (isLostItem) "Report Lost Item" else "Report Found Item"
+            submitButton.text = "Submit Report"
         }
-        titleTextView.text = titleText
-        submitButton.text = if (editingExistingItem) "Update" else "Submit"
 
         // Setup category spinner
-        val categories = arrayOf(
-            "Electronics", "Books & Stationery", "ID Cards & Documents",
-            "Keys", "Clothing", "Accessories", "Wallet/Purse", "Other"
-        )
+        val categories = arrayOf("Electronics", "Clothing", "Books", "Keys", "Wallet", "Jewelry", "Other")
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, categories)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         categorySpinner.adapter = adapter
 
-        // Show/hide kept at field based on item type
-        keptAtLayout.visibility = if (isLostItem) View.GONE else View.VISIBLE
-
-        // Date button setup
-        updateDateButtonText()
-        dateButton.setOnClickListener {
-            showDatePicker()
-        }
-
-        // Image upload button
-        uploadImageButton.setOnClickListener {
-            getContent.launch("image/*")
-        }
-
-        // Submit button
-        submitButton.setOnClickListener {
-            if (validateInputs()) {
-                if (imageUri != null && imageUrl.isEmpty()) {
-                    uploadImageAndSaveItem()
-                } else {
-                    saveItem()
-                }
-            }
-        }
-    }
-
-    private fun loadItemData() {
-        if (editItemId.isNullOrEmpty()) return
-
+        // Setup location label and kept at visibility
         if (isLostItem) {
-            itemRepository.getLostItem(editItemId!!).addOnSuccessListener { document ->
-                val lostItem = document.toObject(LostItem::class.java) ?: return@addOnSuccessListener
-
-                nameEditText.setText(lostItem.name)
-                descriptionEditText.setText(lostItem.description)
-                setCategorySpinnerSelection(lostItem.category)
-                locationEditText.setText(lostItem.location)
-                selectedDate = lostItem.dateLost.toDate()
-                updateDateButtonText()
-
-                if (lostItem.imageUrl.isNotEmpty()) {
-                    imageUrl = lostItem.imageUrl
-                    Glide.with(this)
-                        .load(imageUrl)
-                        .centerCrop()
-                        .into(itemImageView)
-                    itemImageView.visibility = View.VISIBLE
-                }
-            }.addOnFailureListener { e ->
-                showErrorDialog("Failed to load item: ${e.message}")
-            }
+            findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.locationLayout).hint = "Last Seen Location"
+            keptAtLayout.visibility = View.GONE
         } else {
-            itemRepository.getFoundItem(editItemId!!).addOnSuccessListener { document ->
-                val foundItem = document.toObject(FoundItem::class.java) ?: return@addOnSuccessListener
-
-                nameEditText.setText(foundItem.name)
-                descriptionEditText.setText(foundItem.description)
-                setCategorySpinnerSelection(foundItem.category)
-                locationEditText.setText(foundItem.location)
-                keptAtEditText.setText(foundItem.keptAt)
-                selectedDate = foundItem.dateFound.toDate()
-                updateDateButtonText()
-
-                if (foundItem.imageUrl.isNotEmpty()) {
-                    imageUrl = foundItem.imageUrl
-                    Glide.with(this)
-                        .load(imageUrl)
-                        .centerCrop()
-                        .into(itemImageView)
-                    itemImageView.visibility = View.VISIBLE
-                }
-            }.addOnFailureListener { e ->
-                showErrorDialog("Failed to load item: ${e.message}")
-            }
+            findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.locationLayout).hint = "Found Location"
+            keptAtLayout.visibility = View.VISIBLE
         }
+
+        // Setup date button
+        updateDateButton()
     }
 
-    private fun setCategorySpinnerSelection(category: String) {
-        val adapter = categorySpinner.adapter as? ArrayAdapter<String>
-        adapter?.let {
-            for (i in 0 until it.count) {
-                if (it.getItem(i) == category) {
-                    categorySpinner.setSelection(i)
-                    break
-                }
-            }
-        }
-    }
-
-    private fun updateDateButtonText() {
-        val dateText = if (isLostItem) {
-            "Date Lost: ${dateFormat.format(selectedDate)}"
-        } else {
-            "Date Found: ${dateFormat.format(selectedDate)}"
-        }
-        dateButton.text = dateText
+    private fun setupEventListeners() {
+        dateButton.setOnClickListener { showDatePicker() }
+        uploadImageButton.setOnClickListener { selectImage() }
+        submitButton.setOnClickListener { submitItem() }
     }
 
     private fun showDatePicker() {
         val datePicker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText(if (isLostItem) "Select Lost Date" else "Select Found Date")
+            .setTitleText(if (isLostItem) "Select Date Lost" else "Select Date Found")
             .setSelection(selectedDate.time)
             .build()
 
         datePicker.addOnPositiveButtonClickListener { selection ->
             selectedDate = Date(selection)
-            updateDateButtonText()
+            updateDateButton()
         }
 
-        datePicker.show(supportFragmentManager, "DATE_PICKER")
+        datePicker.show(supportFragmentManager, "date_picker")
+    }
+
+    private fun updateDateButton() {
+        val label = if (isLostItem) "Date Lost: " else "Date Found: "
+        dateButton.text = label + dateFormat.format(selectedDate)
+    }
+
+    private fun selectImage() {
+        imagePickerLauncher.launch("image/*")
+    }
+
+    private fun loadItemForEditing() {
+        editItemId?.let { itemId ->
+            lifecycleScope.launch {
+                try {
+                    if (isLostItem) {
+                        val result = itemRepository.getLostItemsByUser(getCurrentUserId())
+                        if (result.isSuccess) {
+                            val items = result.getOrNull() ?: emptyList()
+                            val item = items.find { it.id == itemId }
+                            item?.let { populateFieldsForLostItem(it) }
+                        }
+                    } else {
+                        val result = itemRepository.getFoundItemsByUser(getCurrentUserId())
+                        if (result.isSuccess) {
+                            val items = result.getOrNull() ?: emptyList()
+                            val item = items.find { it.id == itemId }
+                            item?.let { populateFieldsForFoundItem(it) }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ReportItemActivity", "Error loading item for editing", e)
+                    showError("Failed to load item: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private fun populateFieldsForLostItem(item: LostItem) {
+        nameEditText.setText(item.name)
+        descriptionEditText.setText(item.description)
+        locationEditText.setText(item.lastSeenLocation)
+        selectedDate = item.dateLost.toDate()
+        updateDateButton()
+
+        // Set category spinner
+        val categories = (categorySpinner.adapter as ArrayAdapter<String>)
+        val position = (0 until categories.count).find { categories.getItem(it) == item.category } ?: 0
+        categorySpinner.setSelection(position)
+
+        // Load image if available
+        if (item.imageUrl.isNotEmpty()) {
+            imageUrl = item.imageUrl
+            Glide.with(this)
+                .load(item.imageUrl)
+                .into(itemImageView)
+            itemImageView.visibility = View.VISIBLE
+        }
+    }
+
+    private fun populateFieldsForFoundItem(item: FoundItem) {
+        nameEditText.setText(item.name)
+        descriptionEditText.setText(item.description)
+        locationEditText.setText(item.location)
+        keptAtEditText.setText(item.keptAt)
+        selectedDate = item.dateFound.toDate()
+        updateDateButton()
+
+        // Set category spinner
+        val categories = (categorySpinner.adapter as ArrayAdapter<String>)
+        val position = (0 until categories.count).find { categories.getItem(it) == item.category } ?: 0
+        categorySpinner.setSelection(position)
+
+        // Load image if available
+        if (item.imageUrl.isNotEmpty()) {
+            imageUrl = item.imageUrl
+            Glide.with(this)
+                .load(item.imageUrl)
+                .into(itemImageView)
+            itemImageView.visibility = View.VISIBLE
+        }
+    }
+
+    private fun submitItem() {
+        if (!validateInputs()) return
+
+        submitButton.isEnabled = false
+        submitButton.text = "Submitting..."
+
+        lifecycleScope.launch {
+            try {
+                // Upload image if selected
+                if (imageUri != null) {
+                    uploadImageThenSubmit()
+                } else {
+                    submitItemToDatabase()
+                }
+            } catch (e: Exception) {
+                Log.e("ReportItemActivity", "Error submitting item", e)
+                showError("Failed to submit item: ${e.message}")
+                resetSubmitButton()
+            }
+        }
+    }
+
+    private suspend fun uploadImageThenSubmit() {
+        try {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) {
+                showError("You must be logged in to upload images")
+                resetSubmitButton()
+                return
+            }
+
+            // Use the static method with correct parameters
+            val fileName = "${currentUser.uid}_${System.currentTimeMillis()}.jpg"
+            val result = SupabaseManager.uploadImage(this, imageUri!!, fileName)
+
+            if (result.isSuccess) {
+                imageUrl = result.getOrNull() ?: ""
+                submitItemToDatabase()
+            } else {
+                val error = result.exceptionOrNull()
+                showError("Failed to upload image: ${error?.message}")
+                resetSubmitButton()
+            }
+        } catch (e: Exception) {
+            Log.e("ReportItemActivity", "Error uploading image", e)
+            showError("Error uploading image: ${e.message}")
+            resetSubmitButton()
+        }
+    }
+
+    private suspend fun submitItemToDatabase() {
+        try {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) {
+                showError("You must be logged in to submit items")
+                resetSubmitButton()
+                return
+            }
+
+            val result = if (isLostItem) {
+                submitLostItem(currentUser.uid, currentUser.displayName ?: "Anonymous")
+            } else {
+                submitFoundItem(currentUser.uid, currentUser.displayName ?: "Anonymous")
+            }
+
+            if (result.isSuccess) {
+                showSuccess(if (editingExistingItem) "Item updated successfully!" else "Item reported successfully!")
+                finish()
+            } else {
+                val error = result.exceptionOrNull()
+                showError("Failed to submit item: ${error?.message}")
+                resetSubmitButton()
+            }
+        } catch (e: Exception) {
+            Log.e("ReportItemActivity", "Error submitting to database", e)
+            showError("Error submitting item: ${e.message}")
+            resetSubmitButton()
+        }
+    }
+
+    private suspend fun submitLostItem(userId: String, userName: String): Result<String> {
+        val lostItem = LostItem(
+            id = editItemId ?: java.util.UUID.randomUUID().toString(),
+            name = nameEditText.text.toString().trim(),
+            description = descriptionEditText.text.toString().trim(),
+            category = categorySpinner.selectedItem.toString(),
+            location = locationEditText.text.toString().trim(),
+            imageUrl = imageUrl,
+            reportedBy = userId,
+            reportedByName = userName,
+            reportedDate = Timestamp(Date()),
+            dateLost = Timestamp(selectedDate)
+        )
+
+        return itemRepository.addLostItem(lostItem)
+    }
+
+    private suspend fun submitFoundItem(userId: String, userName: String): Result<String> {
+        val foundItem = FoundItem(
+            id = editItemId ?: java.util.UUID.randomUUID().toString(),
+            name = nameEditText.text.toString().trim(),
+            description = descriptionEditText.text.toString().trim(),
+            category = categorySpinner.selectedItem.toString(),
+            location = locationEditText.text.toString().trim(),
+            keptAt = keptAtEditText.text.toString().trim(),
+            imageUrl = imageUrl,
+            reportedBy = userId,
+            reportedByName = userName,
+            reportedDate = Timestamp(Date()),
+            dateFound = Timestamp(selectedDate)
+        )
+
+        return itemRepository.addFoundItem(foundItem)
     }
 
     private fun validateInputs(): Boolean {
-        if (nameEditText.text.isBlank()) {
-            showErrorDialog("Please enter the item name")
+        if (nameEditText.text.toString().trim().isEmpty()) {
+            nameEditText.error = "Item name is required"
             return false
         }
 
-        if (locationEditText.text.isBlank()) {
-            showErrorDialog("Please enter the location")
+        if (locationEditText.text.toString().trim().isEmpty()) {
+            locationEditText.error = if (isLostItem) "Last seen location is required" else "Found location is required"
             return false
         }
 
-        if (!isLostItem && keptAtEditText.text.isBlank()) {
-            showErrorDialog("Please enter where the item is kept")
-            return false
-        }
-
-        if (currentUserId.isEmpty()) {
-            showErrorDialog("You must be signed in to report items")
+        if (!isLostItem && keptAtEditText.text.toString().trim().isEmpty()) {
+            keptAtEditText.error = "Please specify where the item is kept"
             return false
         }
 
         return true
     }
 
-    // Supabase image upload (replaces Firebase Storage)
-    private fun uploadImageAndSaveItem() {
-        imageUri?.let { uri ->
-            // Show loading state
-            submitButton.isEnabled = false
-            submitButton.text = "Uploading..."
-            Toast.makeText(this, "Uploading image to Supabase...", Toast.LENGTH_SHORT).show()
-
-            lifecycleScope.launch {
-                try {
-                    val result = SupabaseManager.getInstance().uploadImage(
-                        context = this@ReportItemActivity,
-                        imageUri = uri,
-                        userId = currentUserId
-                    )
-
-                    result.onSuccess { url ->
-                        imageUrl = url
-                        runOnUiThread {
-                            Toast.makeText(this@ReportItemActivity, "Image uploaded successfully!", Toast.LENGTH_SHORT).show()
-                            saveItem()
-                        }
-                    }.onFailure { exception ->
-                        runOnUiThread {
-                            Log.e("ReportItem", "Supabase upload failed: ${exception.message}")
-                            showErrorDialog("Failed to upload image: ${exception.message}")
-                            // Reset button state
-                            submitButton.isEnabled = true
-                            submitButton.text = if (editingExistingItem) "Update" else "Submit"
-                        }
-                    }
-                } catch (e: Exception) {
-                    runOnUiThread {
-                        Log.e("ReportItem", "Error during Supabase upload: ${e.message}")
-                        showErrorDialog("Error uploading image: ${e.message}")
-                        // Reset button state
-                        submitButton.isEnabled = true
-                        submitButton.text = if (editingExistingItem) "Update" else "Submit"
-                    }
-                }
-            }
-        } ?: run {
-            // No image selected, just save the item
-            saveItem()
-        }
+    private fun getCurrentUserId(): String {
+        return FirebaseAuth.getInstance().currentUser?.uid ?: ""
     }
 
-    private fun saveItem() {
-        val name = nameEditText.text.toString().trim()
-        val description = descriptionEditText.text.toString().trim()
-        val category = categorySpinner.selectedItem.toString()
-        val location = locationEditText.text.toString().trim()
-
-        if (isLostItem) {
-            val lostItem = LostItem(
-                id = editItemId ?: "",
-                name = name,
-                description = description,
-                category = category,
-                location = location,
-                imageUrl = imageUrl,
-                reportedBy = currentUserId,
-                reportedByName = currentUserName,
-                reportedDate = Timestamp.now(),
-                dateLost = Timestamp(selectedDate)
-            )
-
-            val task = if (editingExistingItem) {
-                itemRepository.updateLostItem(lostItem)
-            } else {
-                itemRepository.addLostItem(lostItem)
-            }
-
-            task.addOnSuccessListener {
-                showSuccessDialog(if (editingExistingItem) "Item updated successfully" else "Item reported successfully")
-            }.addOnFailureListener { e ->
-                showErrorDialog("Failed to save item: ${e.message}")
-            }
-        } else {
-            val keptAt = keptAtEditText.text.toString().trim()
-
-            val foundItem = FoundItem(
-                id = editItemId ?: "",
-                name = name,
-                description = description,
-                category = category,
-                location = location,
-                imageUrl = imageUrl,
-                reportedBy = currentUserId,
-                reportedByName = currentUserName,
-                reportedDate = Timestamp.now(),
-                keptAt = keptAt,
-                claimed = false,
-                claimedBy = "",
-                claimedByName = "",
-                dateFound = Timestamp(selectedDate)
-            )
-
-            val task = if (editingExistingItem) {
-                itemRepository.updateFoundItem(foundItem)
-            } else {
-                itemRepository.addFoundItem(foundItem)
-            }
-
-            task.addOnSuccessListener {
-                showSuccessDialog(if (editingExistingItem) "Item updated successfully" else "Item reported successfully")
-            }.addOnFailureListener { e ->
-                showErrorDialog("Failed to save item: ${e.message}")
-            }
-        }
+    private fun resetSubmitButton() {
+        submitButton.isEnabled = true
+        submitButton.text = if (editingExistingItem) "Update Item" else "Submit Report"
     }
 
-    private fun showSuccessDialog(message: String) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Success")
-            .setMessage(message)
-            .setPositiveButton("OK") { _, _ ->
-                setResult(Activity.RESULT_OK)
-                finish()
-            }
-            .setCancelable(false)
-            .show()
-    }
-
-    private fun showErrorDialog(message: String) {
+    private fun showError(message: String) {
         MaterialAlertDialogBuilder(this)
             .setTitle("Error")
             .setMessage(message)
@@ -385,12 +392,11 @@ class ReportItemActivity : AppCompatActivity() {
             .show()
     }
 
-    companion object {
-        fun createEditIntent(context: Context, isLostItem: Boolean, itemId: String): Intent {
-            return Intent(context, ReportItemActivity::class.java).apply {
-                putExtra("isLostItem", isLostItem)
-                putExtra("itemId", itemId)
-            }
-        }
+    private fun showSuccess(message: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Success")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
     }
 }

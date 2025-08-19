@@ -22,13 +22,19 @@ class LostItem(
     name: String = "",
     description: String = "",
     category: String = "",
-    location: String = "",
+    location: String = "", // This will be the last seen location for lost items
     imageUrl: String = "",
     reportedBy: String = "",
     reportedByName: String = "",
     reportedDate: Timestamp = Timestamp.now(),
-    var dateLost: Timestamp = Timestamp.now()
-) : Item(id, name, description, category, location, imageUrl, reportedBy, reportedByName, reportedDate)
+    var dateLost: Timestamp = Timestamp.now(),
+    var found: Boolean = false,
+    var foundBy: String = "",
+    var foundByName: String = ""
+) : Item(id, name, description, category, location, imageUrl, reportedBy, reportedByName, reportedDate) {
+    // Getter for backward compatibility
+    val lastSeenLocation: String get() = location
+}
 
 // Found item class extending the base Item class
 class FoundItem(

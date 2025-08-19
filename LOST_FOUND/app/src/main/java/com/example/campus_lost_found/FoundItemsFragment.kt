@@ -9,17 +9,21 @@ import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.widget.TextView
+import androidx.lifecycle.lifecycleScope
 import com.example.campus_lost_found.adapter.ItemsAdapter
 import com.example.campus_lost_found.model.FoundItem
-import com.example.campus_lost_found.repository.ItemRepository
+import com.example.campus_lost_found.repository.SupabaseRepository
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
 class FoundItemsFragment : Fragment() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var searchView: SearchView
-    private val itemRepository = ItemRepository()
+    private var noItemsTextView: TextView? = null
+    private val itemRepository = SupabaseRepository()
     private val currentUserId: String
         get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     private val currentUserName: String
@@ -39,8 +43,17 @@ class FoundItemsFragment : Fragment() {
 
         try {
             // Safe view initialization with null checks
-            recyclerView = view.findViewById(R.id.itemsRecyclerView) ?: throw IllegalStateException("RecyclerView not found")
-            searchView = view.findViewById(R.id.searchView) ?: throw IllegalStateException("SearchView not found")
+            recyclerView = view.findViewById(R.id.itemsRecyclerView) ?: run {
+                Log.e("FoundItemsFragment", "RecyclerView not found")
+                return
+            }
+
+            searchView = view.findViewById(R.id.searchView) ?: run {
+                Log.e("FoundItemsFragment", "SearchView not found")
+                return
+            }
+
+            noItemsTextView = view.findViewById(R.id.empty_view)
 
             setupRecyclerView()
             setupSearch()
@@ -103,31 +116,36 @@ class FoundItemsFragment : Fragment() {
     }
 
     private fun loadFoundItems() {
-        Log.d("FoundItemsFragment", "Loading found items from all users...")
+        Log.d("FoundItemsFragment", "Loading found items from Supabase...")
 
-        itemRepository.getFoundItems().get()
-            .addOnSuccessListener { snapshot ->
-                Log.d("FoundItemsFragment", "Successfully loaded ${snapshot.size()} found items")
-                val items = snapshot.toObjects(FoundItem::class.java)
+        lifecycleScope.launch {
+            try {
+                showEmptyState("Loading found items...")
 
-                // Debug: Log each item to see what's being loaded
-                items.forEachIndexed { index, item ->
-                    Log.d("FoundItemsFragment", "Item $index: ${item.name} by ${item.reportedByName} (${item.reportedBy})")
+                val result = itemRepository.getFoundItems()
+
+                if (result.isSuccess) {
+                    val items = result.getOrNull() ?: emptyList()
+                    Log.d("FoundItemsFragment", "Successfully loaded ${items.size} found items")
+
+                    foundItems = items
+                    updateRecyclerView(items)
+
+                    if (items.isEmpty()) {
+                        showEmptyState("No found items yet. Help by reporting found items!")
+                    }
+                } else {
+                    val error = result.exceptionOrNull()
+                    Log.e("FoundItemsFragment", "Failed to load found items: ${error?.message}")
+                    showErrorDialog("Failed to load found items: ${error?.message}")
+                    showEmptyState("Failed to load items. Please check your connection.")
                 }
-
-                foundItems = items
-                updateRecyclerView(items)
-
-                // Show empty state if no items
-                if (items.isEmpty()) {
-                    showEmptyState("No found items yet. Help by reporting found items!")
-                }
+            } catch (e: Exception) {
+                Log.e("FoundItemsFragment", "Exception loading found items: ${e.message}", e)
+                showErrorDialog("Error loading items: ${e.message}")
+                showEmptyState("Error loading items. Please try again.")
             }
-            .addOnFailureListener { exception ->
-                Log.e("FoundItemsFragment", "Failed to load found items: ${exception.message}")
-                showErrorDialog("Failed to load found items: ${exception.message}")
-                showEmptyState("Failed to load items. Please check your connection.")
-            }
+        }
     }
 
     private fun updateRecyclerView(items: List<FoundItem>) {
@@ -145,6 +163,12 @@ class FoundItemsFragment : Fragment() {
             }
         )
         recyclerView.adapter = adapter
+
+        if (items.isEmpty()) {
+            showEmptyState("No found items available")
+        } else {
+            hideEmptyState()
+        }
     }
 
     private fun showItemDetailsDialog(item: FoundItem) {
@@ -173,12 +197,8 @@ class FoundItemsFragment : Fragment() {
     }
 
     private fun showClaimConfirmationDialog(item: FoundItem) {
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_claim_item, null)
-
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Claim This Item")
-            .setView(dialogView)
             .setMessage("Are you sure you want to claim this item? The finder will be notified of your claim.")
             .setPositiveButton("Claim") { _, _ ->
                 processClaimRequest(item)
@@ -193,14 +213,21 @@ class FoundItemsFragment : Fragment() {
             return
         }
 
-        itemRepository.claimItem(item.id, currentUserId, currentUserName)
-            .addOnSuccessListener {
-                showSuccessDialog("Claim request sent successfully. The finder will be notified.")
-                loadFoundItems() // Refresh the list
+        lifecycleScope.launch {
+            try {
+                val result = itemRepository.claimFoundItem(item.id, currentUserId, currentUserName)
+
+                if (result.isSuccess) {
+                    showSuccessDialog("Claim request sent successfully. The finder will be notified.")
+                    loadFoundItems() // Refresh the list
+                } else {
+                    val error = result.exceptionOrNull()
+                    showErrorDialog("Failed to claim item: ${error?.message}")
+                }
+            } catch (e: Exception) {
+                showErrorDialog("Error claiming item: ${e.message}")
             }
-            .addOnFailureListener { exception ->
-                showErrorDialog("Failed to claim item: ${exception.message}")
-            }
+        }
     }
 
     private fun showSuccessDialog(message: String) {
@@ -220,7 +247,16 @@ class FoundItemsFragment : Fragment() {
     }
 
     private fun showEmptyState(message: String) {
-        android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_LONG).show()
+        noItemsTextView?.let {
+            it.text = message
+            it.visibility = View.VISIBLE
+        }
+        recyclerView.visibility = View.GONE
+    }
+
+    private fun hideEmptyState() {
+        noItemsTextView?.visibility = View.GONE
+        recyclerView.visibility = View.VISIBLE
     }
 
     override fun onResume() {

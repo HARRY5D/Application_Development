@@ -222,7 +222,7 @@ class SearchFilterManager(
         val dateFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
 
         dateFilterButton.text = when {
-            startDate != null && endDate != null -> 
+            startDate != null && endDate != null ->
                 "${dateFormat.format(startDate!!)} - ${dateFormat.format(endDate!!)}"
             startDate != null -> 
                 "From ${dateFormat.format(startDate!!)}"

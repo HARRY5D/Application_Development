@@ -11,22 +11,24 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.lifecycle.lifecycleScope
 import com.example.campus_lost_found.adapter.ItemsAdapter
 import com.example.campus_lost_found.model.FoundItem
 import com.example.campus_lost_found.model.Item
 import com.example.campus_lost_found.model.LostItem
-import com.example.campus_lost_found.repository.ItemRepository
+import com.example.campus_lost_found.repository.SupabaseRepository
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
 class MyReportsFragment : Fragment() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var searchView: SearchView
-    private lateinit var tabLayout: TabLayout
-    private lateinit var noItemsTextView: TextView
-    private val itemRepository = ItemRepository()
+    private var tabLayout: TabLayout? = null
+    private var noItemsTextView: TextView? = null
+    private val itemRepository = SupabaseRepository()
     private val currentUserId: String
         get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
@@ -47,68 +49,46 @@ class MyReportsFragment : Fragment() {
         try {
             Log.d("MyReportsFragment", "Starting onViewCreated")
 
-            // Safe view initialization with null checks
-            recyclerView = view.findViewById(R.id.itemsRecyclerView) ?: throw IllegalStateException("RecyclerView not found")
-            searchView = view.findViewById(R.id.searchView) ?: throw IllegalStateException("SearchView not found")
-
-            // TabLayout might not exist in fragment_items_list, so make it optional
-            tabLayout = view.findViewById(R.id.myReportsTabLayout) ?: let {
-                Log.w("MyReportsFragment", "myReportsTabLayout not found, creating programmatically")
-                createTabLayoutProgrammatically(view)
+            // Initialize required views
+            recyclerView = view.findViewById(R.id.itemsRecyclerView) ?: run {
+                Log.e("MyReportsFragment", "RecyclerView not found")
+                return
             }
 
-            noItemsTextView = view.findViewById(R.id.empty_view) ?: throw IllegalStateException("Empty view not found")
+            searchView = view.findViewById(R.id.searchView) ?: run {
+                Log.e("MyReportsFragment", "SearchView not found")
+                return
+            }
 
-            setupRecyclerView()
-            setupTabLayout()
-            setupSearch()
+            // Initialize optional views safely
+            tabLayout = view.findViewById(R.id.myReportsTabLayout)
+            noItemsTextView = view.findViewById(R.id.empty_view)
+
+            if (tabLayout == null) {
+                Log.w("MyReportsFragment", "TabLayout not found in layout")
+            }
+
+            if (noItemsTextView == null) {
+                Log.w("MyReportsFragment", "Empty view not found in layout")
+            }
+
+            setupViews()
             loadMyItems()
-
-            Log.d("MyReportsFragment", "onViewCreated completed successfully")
 
         } catch (e: Exception) {
             Log.e("MyReportsFragment", "Error in onViewCreated: ${e.message}", e)
             // Show error to user instead of crashing
-            android.widget.Toast.makeText(requireContext(), "Loading My Reports...", android.widget.Toast.LENGTH_SHORT).show()
-            // Try to load without tabs
-            setupBasicView()
+            android.widget.Toast.makeText(requireContext(), "Error loading fragment", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun createTabLayoutProgrammatically(parentView: View): TabLayout {
-        val tabLayout = TabLayout(requireContext())
-        tabLayout.id = View.generateViewId()
-
-        // Add to the parent layout if possible
-        val parent = parentView as? ViewGroup
-        parent?.addView(tabLayout, 0) // Add at the top
-
-        return tabLayout
-    }
-
-    private fun setupBasicView() {
+    private fun setupViews() {
         try {
-            // Simple setup without tabs
-            recyclerView.layoutManager = LinearLayoutManager(requireContext())
-            recyclerView.adapter = ItemsAdapter(
-                items = mutableListOf(),
-                isLostItemsList = true,
-                currentUserId = currentUserId,
-                onItemClick = { },
-                onClaimButtonClick = { }
-            )
-            loadMyItems()
-        } catch (e: Exception) {
-            Log.e("MyReportsFragment", "Even basic setup failed: ${e.message}")
-        }
-    }
-
-    private fun setupRecyclerView() {
-        try {
+            // Setup RecyclerView
             recyclerView.layoutManager = LinearLayoutManager(requireContext())
             recyclerView.setHasFixedSize(true)
 
-            // Set empty adapter initially to prevent crashes
+            // Set empty adapter initially
             recyclerView.adapter = ItemsAdapter(
                 items = mutableListOf(),
                 isLostItemsList = true,
@@ -116,145 +96,154 @@ class MyReportsFragment : Fragment() {
                 onItemClick = { },
                 onClaimButtonClick = { }
             )
-        } catch (e: Exception) {
-            Log.e("MyReportsFragment", "Error setting up RecyclerView: ${e.message}")
-        }
-    }
 
-    private fun setupTabLayout() {
-        tabLayout.addTab(tabLayout.newTab().setText("My Lost Items"))
-        tabLayout.addTab(tabLayout.newTab().setText("My Found Items"))
+            // Setup TabLayout if available
+            tabLayout?.let { tabLayout ->
+                tabLayout.visibility = View.VISIBLE
+                tabLayout.removeAllTabs()
+                tabLayout.addTab(tabLayout.newTab().setText("Lost Items"))
+                tabLayout.addTab(tabLayout.newTab().setText("Found Items"))
 
-        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                when (tab?.position) {
-                    0 -> {
-                        displayingLostItems = true
-                        updateRecyclerView(myLostItems)
+                tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+                    override fun onTabSelected(tab: TabLayout.Tab?) {
+                        tab?.let {
+                            displayingLostItems = it.position == 0
+                            updateDisplayedItems()
+                        }
                     }
-                    1 -> {
-                        displayingLostItems = false
-                        updateRecyclerView(myFoundItems)
-                    }
+
+                    override fun onTabUnselected(tab: TabLayout.Tab?) {}
+                    override fun onTabReselected(tab: TabLayout.Tab?) {}
+                })
+            }
+
+            // Setup SearchView
+            searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                override fun onQueryTextSubmit(query: String?): Boolean {
+                    filterItems(query)
+                    return false
                 }
-            }
 
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
-        })
-    }
+                override fun onQueryTextChange(newText: String?): Boolean {
+                    filterItems(newText)
+                    return false
+                }
+            })
 
-    private fun setupSearch() {
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                filterItems(query)
-                return false
-            }
-
-            override fun onQueryTextChange(newText: String?): Boolean {
-                filterItems(newText)
-                return false
-            }
-        })
-    }
-
-    private fun filterItems(query: String?) {
-        if (query.isNullOrBlank()) {
-            if (displayingLostItems) {
-                updateRecyclerView(myLostItems)
-            } else {
-                updateRecyclerView(myFoundItems)
-            }
-            return
-        }
-
-        if (displayingLostItems) {
-            val filteredList = myLostItems.filter { item ->
-                item.name.contains(query, ignoreCase = true) ||
-                item.description.contains(query, ignoreCase = true) ||
-                item.category.contains(query, ignoreCase = true) ||
-                item.location.contains(query, ignoreCase = true)
-            }
-            updateRecyclerView(filteredList)
-        } else {
-            val filteredList = myFoundItems.filter { item ->
-                item.name.contains(query, ignoreCase = true) ||
-                item.description.contains(query, ignoreCase = true) ||
-                item.category.contains(query, ignoreCase = true) ||
-                item.location.contains(query, ignoreCase = true)
-            }
-            updateRecyclerView(filteredList)
+        } catch (e: Exception) {
+            Log.e("MyReportsFragment", "Error setting up views: ${e.message}")
         }
     }
 
     private fun loadMyItems() {
         if (currentUserId.isEmpty()) {
-            showLoginRequiredDialog()
+            Log.w("MyReportsFragment", "No user logged in")
+            updateRecyclerView(emptyList())
             return
         }
 
-        // Load lost items reported by current user
-        itemRepository.getLostItemsByUser(currentUserId).get()
-            .addOnSuccessListener { snapshot ->
-                myLostItems = snapshot.toObjects(LostItem::class.java)
-                if (displayingLostItems) {
-                    updateRecyclerView(myLostItems)
-                }
-            }
-            .addOnFailureListener { exception ->
-                showErrorDialog("Failed to load your lost items: ${exception.message}")
-            }
+        lifecycleScope.launch {
+            try {
+                showEmptyState("Loading your reports...")
 
-        // Load found items reported by current user
-        itemRepository.getFoundItemsByUser(currentUserId).get()
-            .addOnSuccessListener { snapshot ->
-                myFoundItems = snapshot.toObjects(FoundItem::class.java)
-                if (!displayingLostItems) {
-                    updateRecyclerView(myFoundItems)
+                // Load both lost and found items
+                val lostResult = itemRepository.getLostItemsByUser(currentUserId)
+                val foundResult = itemRepository.getFoundItemsByUser(currentUserId)
+
+                if (lostResult.isSuccess) {
+                    myLostItems = lostResult.getOrNull() ?: emptyList()
+                    Log.d("MyReportsFragment", "Loaded ${myLostItems.size} lost items")
+                } else {
+                    Log.e("MyReportsFragment", "Failed to load lost items: ${lostResult.exceptionOrNull()?.message}")
                 }
+
+                if (foundResult.isSuccess) {
+                    myFoundItems = foundResult.getOrNull() ?: emptyList()
+                    Log.d("MyReportsFragment", "Loaded ${myFoundItems.size} found items")
+                } else {
+                    Log.e("MyReportsFragment", "Failed to load found items: ${foundResult.exceptionOrNull()?.message}")
+                }
+
+                updateDisplayedItems()
+
+            } catch (e: Exception) {
+                Log.e("MyReportsFragment", "Exception loading items: ${e.message}", e)
+                showErrorDialog("Failed to load your reports: ${e.message}")
+                updateRecyclerView(emptyList())
             }
-            .addOnFailureListener { exception ->
-                showErrorDialog("Failed to load your found items: ${exception.message}")
-            }
+        }
     }
 
-    private fun <T : Item> updateRecyclerView(items: List<T>) {
-        if (items.isEmpty()) {
-            recyclerView.visibility = View.GONE
-            noItemsTextView.visibility = View.VISIBLE
-            noItemsTextView.text = if (displayingLostItems) {
-                "You haven't reported any lost items yet"
+    private fun updateDisplayedItems() {
+        val itemsToShow = if (displayingLostItems) myLostItems else myFoundItems
+        updateRecyclerView(itemsToShow)
+    }
+
+    private fun filterItems(query: String?) {
+        val itemsToFilter = if (displayingLostItems) myLostItems else myFoundItems
+
+        if (query.isNullOrBlank()) {
+            updateRecyclerView(itemsToFilter)
+            return
+        }
+
+        val filteredList = itemsToFilter.filter { item ->
+            when (item) {
+                is LostItem -> item.name.contains(query, ignoreCase = true) ||
+                    item.description.contains(query, ignoreCase = true) ||
+                    item.category.contains(query, ignoreCase = true) ||
+                    item.location.contains(query, ignoreCase = true) // Use location instead of lastSeenLocation
+                is FoundItem -> item.name.contains(query, ignoreCase = true) ||
+                    item.description.contains(query, ignoreCase = true) ||
+                    item.category.contains(query, ignoreCase = true) ||
+                    item.location.contains(query, ignoreCase = true) ||
+                    item.keptAt.contains(query, ignoreCase = true)
+                else -> false
+            }
+        }
+
+        updateRecyclerView(filteredList)
+    }
+
+    private fun updateRecyclerView(items: List<Item>) {
+        try {
+            val adapter = ItemsAdapter(
+                items = items.toMutableList(),
+                isLostItemsList = displayingLostItems,
+                currentUserId = currentUserId,
+                onItemClick = { item -> showItemDetailsDialog(item) },
+                onClaimButtonClick = { item -> showDeleteConfirmationDialog(item) }
+            )
+            recyclerView.adapter = adapter
+
+            // Update empty state
+            if (items.isEmpty()) {
+                val message = if (displayingLostItems) {
+                    "No lost items reported yet"
+                } else {
+                    "No found items reported yet"
+                }
+                showEmptyState(message)
             } else {
-                "You haven't reported any found items yet"
+                hideEmptyState()
             }
-            return
+
+        } catch (e: Exception) {
+            Log.e("MyReportsFragment", "Error updating RecyclerView: ${e.message}")
         }
-
-        recyclerView.visibility = View.VISIBLE
-        noItemsTextView.visibility = View.GONE
-
-        val adapter = ItemsAdapter(
-            items = items.toMutableList(),
-            isLostItemsList = displayingLostItems,
-            currentUserId = currentUserId,
-            onItemClick = { item ->
-                showItemOptionsDialog(item)
-            }
-        )
-        recyclerView.adapter = adapter
     }
 
-    private fun showItemOptionsDialog(item: Item) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Item Options")
-            .setItems(arrayOf("View Details", "Edit", "Delete")) { _, which ->
-                when (which) {
-                    0 -> showItemDetailsDialog(item)
-                    1 -> editItem(item)
-                    2 -> showDeleteConfirmationDialog(item)
-                }
-            }
-            .show()
+    private fun showEmptyState(message: String) {
+        noItemsTextView?.let {
+            it.text = message
+            it.visibility = View.VISIBLE
+        }
+        recyclerView.visibility = View.GONE
+    }
+
+    private fun hideEmptyState() {
+        noItemsTextView?.visibility = View.GONE
+        recyclerView.visibility = View.VISIBLE
     }
 
     private fun showItemDetailsDialog(item: Item) {
@@ -262,7 +251,7 @@ class MyReportsFragment : Fragment() {
             is LostItem -> """
                 Name: ${item.name}
                 Category: ${item.category}
-                Location: ${item.location}
+                Location: ${item.lastSeenLocation}
                 Description: ${item.description}
                 Date Lost: ${item.dateLost.toDate()}
             """.trimIndent()
@@ -295,28 +284,6 @@ class MyReportsFragment : Fragment() {
             .show()
     }
 
-    private fun editItem(item: Item) {
-        val intent = when (item) {
-            is LostItem -> {
-                ReportItemActivity.createEditIntent(
-                    context = requireContext(),
-                    isLostItem = true,
-                    itemId = item.id
-                )
-            }
-            is FoundItem -> {
-                ReportItemActivity.createEditIntent(
-                    context = requireContext(),
-                    isLostItem = false,
-                    itemId = item.id
-                )
-            }
-            else -> null
-        }
-
-        intent?.let { startActivity(it) }
-    }
-
     private fun showDeleteConfirmationDialog(item: Item) {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Confirm Deletion")
@@ -329,26 +296,23 @@ class MyReportsFragment : Fragment() {
     }
 
     private fun deleteItem(item: Item) {
-        when (item) {
-            is LostItem -> {
-                itemRepository.deleteLostItem(item.id, currentUserId)
-                    .addOnSuccessListener {
-                        showSuccessDialog("Item deleted successfully")
-                        loadMyItems()
-                    }
-                    .addOnFailureListener { exception ->
-                        showErrorDialog("Failed to delete item: ${exception.message}")
-                    }
-            }
-            is FoundItem -> {
-                itemRepository.deleteFoundItem(item.id, currentUserId)
-                    .addOnSuccessListener {
-                        showSuccessDialog("Item deleted successfully")
-                        loadMyItems()
-                    }
-                    .addOnFailureListener { exception ->
-                        showErrorDialog("Failed to delete item: ${exception.message}")
-                    }
+        lifecycleScope.launch {
+            try {
+                val result = when (item) {
+                    is LostItem -> itemRepository.deleteLostItem(item.id)
+                    is FoundItem -> itemRepository.deleteFoundItem(item.id)
+                    else -> Result.failure(Exception("Unknown item type"))
+                }
+
+                if (result.isSuccess) {
+                    showSuccessDialog("Item deleted successfully")
+                    loadMyItems()
+                } else {
+                    val error = result.exceptionOrNull()
+                    showErrorDialog("Failed to delete item: ${error?.message}")
+                }
+            } catch (e: Exception) {
+                showErrorDialog("Error deleting item: ${e.message}")
             }
         }
     }

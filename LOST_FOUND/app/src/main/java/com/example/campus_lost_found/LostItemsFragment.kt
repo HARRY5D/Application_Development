@@ -9,17 +9,21 @@ import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.widget.TextView
+import androidx.lifecycle.lifecycleScope
 import com.example.campus_lost_found.adapter.ItemsAdapter
 import com.example.campus_lost_found.model.LostItem
-import com.example.campus_lost_found.repository.ItemRepository
+import com.example.campus_lost_found.repository.SupabaseRepository
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
 class LostItemsFragment : Fragment() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var searchView: SearchView
-    private val itemRepository = ItemRepository()
+    private var noItemsTextView: TextView? = null
+    private val itemRepository = SupabaseRepository()
     private val currentUserId: String
         get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
@@ -37,8 +41,17 @@ class LostItemsFragment : Fragment() {
 
         try {
             // Safe view initialization with null checks
-            recyclerView = view.findViewById(R.id.itemsRecyclerView) ?: throw IllegalStateException("RecyclerView not found")
-            searchView = view.findViewById(R.id.searchView) ?: throw IllegalStateException("SearchView not found")
+            recyclerView = view.findViewById(R.id.itemsRecyclerView) ?: run {
+                Log.e("LostItemsFragment", "RecyclerView not found")
+                return
+            }
+
+            searchView = view.findViewById(R.id.searchView) ?: run {
+                Log.e("LostItemsFragment", "SearchView not found")
+                return
+            }
+
+            noItemsTextView = view.findViewById(R.id.empty_view)
 
             setupRecyclerView()
             setupSearch()
@@ -93,38 +106,43 @@ class LostItemsFragment : Fragment() {
             item.name.contains(query, ignoreCase = true) ||
             item.description.contains(query, ignoreCase = true) ||
             item.category.contains(query, ignoreCase = true) ||
-            item.location.contains(query, ignoreCase = true)
+            item.location.contains(query, ignoreCase = true) // Use location instead of lastSeenLocation
         }
 
         updateRecyclerView(filteredList)
     }
 
     private fun loadLostItems() {
-        Log.d("LostItemsFragment", "Loading lost items from all users...")
+        Log.d("LostItemsFragment", "Loading lost items from Supabase...")
 
-        itemRepository.getLostItems().get()
-            .addOnSuccessListener { snapshot ->
-                Log.d("LostItemsFragment", "Successfully loaded ${snapshot.size()} lost items")
-                val items = snapshot.toObjects(LostItem::class.java)
+        lifecycleScope.launch {
+            try {
+                showEmptyState("Loading lost items...")
 
-                // Debug: Log each item to see what's being loaded
-                items.forEachIndexed { index, item ->
-                    Log.d("LostItemsFragment", "Item $index: ${item.name} by ${item.reportedByName} (${item.reportedBy})")
+                val result = itemRepository.getLostItems()
+
+                if (result.isSuccess) {
+                    val items = result.getOrNull() ?: emptyList()
+                    Log.d("LostItemsFragment", "Successfully loaded ${items.size} lost items")
+
+                    lostItems = items
+                    updateRecyclerView(items)
+
+                    if (items.isEmpty()) {
+                        showEmptyState("No lost items reported yet.")
+                    }
+                } else {
+                    val error = result.exceptionOrNull()
+                    Log.e("LostItemsFragment", "Failed to load lost items: ${error?.message}")
+                    showErrorDialog("Failed to load lost items: ${error?.message}")
+                    showEmptyState("Failed to load items. Please check your connection.")
                 }
-
-                lostItems = items
-                updateRecyclerView(items)
-
-                // Show empty state if no items
-                if (items.isEmpty()) {
-                    showEmptyState("No lost items found. Be the first to report!")
-                }
+            } catch (e: Exception) {
+                Log.e("LostItemsFragment", "Exception loading lost items: ${e.message}", e)
+                showErrorDialog("Error loading items: ${e.message}")
+                showEmptyState("Error loading items. Please try again.")
             }
-            .addOnFailureListener { exception ->
-                Log.e("LostItemsFragment", "Failed to load lost items: ${exception.message}")
-                showErrorDialog("Failed to load lost items: ${exception.message}")
-                showEmptyState("Failed to load items. Please check your connection.")
-            }
+        }
     }
 
     private fun updateRecyclerView(items: List<LostItem>) {
@@ -136,17 +154,23 @@ class LostItemsFragment : Fragment() {
                 showItemDetailsDialog(item as LostItem)
             },
             onClaimButtonClick = { item ->
-                handleClaimRequest(item as LostItem)
+                showFoundConfirmationDialog(item as LostItem)
             }
         )
         recyclerView.adapter = adapter
+
+        if (items.isEmpty()) {
+            showEmptyState("No lost items available")
+        } else {
+            hideEmptyState()
+        }
     }
 
     private fun showItemDetailsDialog(item: LostItem) {
         val message = """
             Name: ${item.name}
             Category: ${item.category}
-            Location: ${item.location}
+            Last Seen: ${item.lastSeenLocation}
             Description: ${item.description}
             Date Lost: ${item.dateLost.toDate()}
             Reported by: ${item.reportedByName}
@@ -159,30 +183,45 @@ class LostItemsFragment : Fragment() {
             .show()
     }
 
-    private fun handleClaimRequest(item: LostItem) {
-        if (currentUserId.isEmpty()) {
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Authentication Required")
-                .setMessage("Please sign in to contact the reporter.")
-                .setPositiveButton("OK", null)
-                .show()
-            return
-        }
-
+    private fun showFoundConfirmationDialog(item: LostItem) {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Contact Reporter")
-            .setMessage("Do you think this item belongs to you? Contact the person who reported it lost.")
-            .setPositiveButton("Contact") { _, _ ->
-                showContactInfoDialog(item)
+            .setTitle("Found This Item?")
+            .setMessage("Have you found this item? The owner will be notified of your claim.")
+            .setPositiveButton("Yes, I Found It") { _, _ ->
+                processFoundClaim(item)
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun showContactInfoDialog(item: LostItem) {
+    private fun processFoundClaim(item: LostItem) {
+        if (currentUserId.isEmpty()) {
+            showErrorDialog("You must be logged in to claim items.")
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                val currentUserName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Anonymous User"
+                val result = itemRepository.markLostItemAsFound(item.id, currentUserId, currentUserName)
+
+                if (result.isSuccess) {
+                    showSuccessDialog("Thank you! The owner has been notified that you found their item.")
+                    loadLostItems() // Refresh the list
+                } else {
+                    val error = result.exceptionOrNull()
+                    showErrorDialog("Failed to process claim: ${error?.message}")
+                }
+            } catch (e: Exception) {
+                showErrorDialog("Error processing claim: ${e.message}")
+            }
+        }
+    }
+
+    private fun showSuccessDialog(message: String) {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Contact Information")
-            .setMessage("Reporter: ${item.reportedByName}\n\nNote: In a full implementation, this would show contact details or open an in-app messaging system.")
+            .setTitle("Success")
+            .setMessage(message)
             .setPositiveButton("OK", null)
             .show()
     }
@@ -196,8 +235,16 @@ class LostItemsFragment : Fragment() {
     }
 
     private fun showEmptyState(message: String) {
-        // You can add an empty state view here if needed
-        android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_LONG).show()
+        noItemsTextView?.let {
+            it.text = message
+            it.visibility = View.VISIBLE
+        }
+        recyclerView.visibility = View.GONE
+    }
+
+    private fun hideEmptyState() {
+        noItemsTextView?.visibility = View.GONE
+        recyclerView.visibility = View.VISIBLE
     }
 
     override fun onResume() {

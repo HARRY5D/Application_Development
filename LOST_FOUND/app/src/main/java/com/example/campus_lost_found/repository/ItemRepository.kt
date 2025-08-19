@@ -1,5 +1,6 @@
 package com.example.campus_lost_found.repository
 
+import android.util.Log
 import com.example.campus_lost_found.model.FoundItem
 import com.example.campus_lost_found.model.LostItem
 import com.google.android.gms.tasks.Task
@@ -12,18 +13,12 @@ class ItemRepository {
     private val db = FirebaseFirestore.getInstance()
     private val lostItemsCollection = db.collection("lostItems")
     private val foundItemsCollection = db.collection("foundItems")
-    private val usersCollection = db.collection("users")
 
     // Lost Items
     fun addLostItem(lostItem: LostItem): Task<Void> {
         val documentRef = lostItemsCollection.document()
         lostItem.id = documentRef.id
         return documentRef.set(lostItem)
-            .addOnSuccessListener {
-                // Update user's lost reports
-                usersCollection.document(lostItem.reportedBy)
-                    .update("lostReports", com.google.firebase.firestore.FieldValue.arrayUnion(lostItem.id))
-            }
     }
 
     fun getLostItems(): Query {
@@ -45,11 +40,6 @@ class ItemRepository {
 
     fun deleteLostItem(itemId: String, userId: String): Task<Void> {
         return lostItemsCollection.document(itemId).delete()
-            .addOnSuccessListener {
-                // Remove from user's lost reports
-                usersCollection.document(userId)
-                    .update("lostReports", com.google.firebase.firestore.FieldValue.arrayRemove(itemId))
-            }
     }
 
     // Found Items
@@ -57,11 +47,6 @@ class ItemRepository {
         val documentRef = foundItemsCollection.document()
         foundItem.id = documentRef.id
         return documentRef.set(foundItem)
-            .addOnSuccessListener {
-                // Update user's found reports
-                usersCollection.document(foundItem.reportedBy)
-                    .update("foundReports", com.google.firebase.firestore.FieldValue.arrayUnion(foundItem.id))
-            }
     }
 
     fun getFoundItems(): Query {
@@ -83,36 +68,24 @@ class ItemRepository {
 
     fun deleteFoundItem(itemId: String, userId: String): Task<Void> {
         return foundItemsCollection.document(itemId).delete()
-            .addOnSuccessListener {
-                // Remove from user's found reports
-                usersCollection.document(userId)
-                    .update("foundReports", com.google.firebase.firestore.FieldValue.arrayRemove(itemId))
-            }
     }
 
-    fun claimItem(foundItemId: String, userId: String, userName: String): Task<Void> {
-        return foundItemsCollection.document(foundItemId)
-            .update(
-                mapOf(
-                    "claimed" to true,
-                    "claimedBy" to userId,
-                    "claimedByName" to userName
-                )
+    fun claimItem(itemId: String, claimedBy: String, claimedByName: String): Task<Void> {
+        return foundItemsCollection.document(itemId).update(
+            mapOf(
+                "claimed" to true,
+                "claimedBy" to claimedBy,
+                "claimedByName" to claimedByName
             )
+        )
     }
 
-    // Search functionality
-    fun searchLostItems(query: String): Task<QuerySnapshot> {
-        return lostItemsCollection
-            .whereGreaterThanOrEqualTo("name", query)
-            .whereLessThanOrEqualTo("name", query + "\uf8ff")
-            .get()
-    }
-
-    fun searchFoundItems(query: String): Task<QuerySnapshot> {
-        return foundItemsCollection
-            .whereGreaterThanOrEqualTo("name", query)
-            .whereLessThanOrEqualTo("name", query + "\uf8ff")
-            .get()
+    fun markItemAsFound(itemId: String, foundBy: String): Task<Void> {
+        return lostItemsCollection.document(itemId).update(
+            mapOf(
+                "found" to true,
+                "foundBy" to foundBy
+            )
+        )
     }
 }
