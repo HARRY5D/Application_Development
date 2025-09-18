@@ -4,7 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import com.example.sgp.ml.SEDetectionModel
+import com.example.sgp.ml.MessageClassifier
 import com.example.sgp.utils.NotificationUtils
 
 class ScreenMonitorService : AccessibilityService() {
@@ -72,20 +72,21 @@ class ScreenMonitorService : AccessibilityService() {
     }
 
     private fun processText(text: String, packageName: String) {
-        // Use TFLite model to check if this is a suspicious message
-        val result = SEDetectionModel.getInstance(applicationContext).detectThreat(text)
+        // Use the MessageClassifier to check if this is a suspicious message
+        val messageClassifier = MessageClassifier(applicationContext)
+        val result = messageClassifier.classifyMessage(text)
 
-        if (result.isSuspicious()) {
+        if (result.isThreat) {
             // Display an alert for the suspicious text
             notificationUtils?.showSecurityAlert(
                 "Unknown",
                 text,
                 result.threatType,
-                result.confidenceScore
+                result.confidence
             )
 
             // Log the detection
-            logDetection("On-screen text", text, packageName, result.threatType, result.confidenceScore)
+            logDetection("On-screen text", text, packageName, result.threatType, result.confidence)
         }
     }
 

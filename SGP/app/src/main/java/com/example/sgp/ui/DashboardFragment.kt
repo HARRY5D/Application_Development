@@ -6,12 +6,15 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.sgp.MainActivity
 import com.example.sgp.R
 import com.example.sgp.databinding.FragmentDashboardBinding
 import com.example.sgp.model.ThreatItem
+import com.example.sgp.repository.ThreatRepository
 import com.example.sgp.ui.adapter.ThreatAdapter
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -22,7 +25,7 @@ class DashboardFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var threatAdapter: ThreatAdapter
-    private val threatItems = mutableListOf<ThreatItem>()
+    private lateinit var threatRepository: ThreatRepository
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -36,9 +39,10 @@ class DashboardFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        threatRepository = ThreatRepository.getInstance()
         setupRecyclerView()
         updateSystemStatus()
-        loadDemoThreats() // Load some demo threats for demonstration
+        observeThreatData()
         updateStatistics()
     }
 
@@ -54,13 +58,19 @@ class DashboardFragment : Fragment() {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = threatAdapter
         }
+    }
 
-        // Show empty state if no threats
-        if (threatItems.isEmpty()) {
-            binding.emptyStateView.visibility = View.VISIBLE
-        } else {
-            binding.emptyStateView.visibility = View.GONE
+    private fun observeThreatData() {
+        threatRepository.threatItems.observe(viewLifecycleOwner) { threats ->
+            threatAdapter.submitList(threats)
+            updateEmptyState(threats.isEmpty())
+            updateStatistics()
         }
+    }
+
+    private fun updateEmptyState(isEmpty: Boolean) {
+        binding.emptyStateView.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        binding.rvThreatList.visibility = if (isEmpty) View.GONE else View.VISIBLE
     }
 
     private fun updateSystemStatus() {
@@ -113,50 +123,10 @@ class DashboardFragment : Fragment() {
         )
     }
 
-    private fun loadDemoThreats() {
-        // For demonstration purposes, add some example threats
-        val demoThreats = listOf(
-            ThreatItem(
-                id = 1,
-                messageContent = "Congratulations! You've won a $500 Amazon gift card. Click here to claim: http://amaz0n-gift.tk",
-                sender = "Unknown",
-                sourceApp = "WhatsApp",
-                threatType = "PHISHING",
-                confidenceScore = 92,
-                timestamp = System.currentTimeMillis() - 15 * 60 * 1000 // 15 minutes ago
-            ),
-            ThreatItem(
-                id = 2,
-                messageContent = "Your account has been compromised. Please verify your identity by clicking: http://secur1ty-verify.com",
-                sender = "Security Team",
-                sourceApp = "SMS",
-                threatType = "SMISHING",
-                confidenceScore = 87,
-                timestamp = System.currentTimeMillis() - 3 * 60 * 60 * 1000 // 3 hours ago
-            ),
-            ThreatItem(
-                id = 3,
-                messageContent = "Urgent: Your payment failed. Update your billing info: http://paym3nt-update.xyz",
-                sender = "Netflix",
-                sourceApp = "Gmail",
-                threatType = "PHISHING",
-                confidenceScore = 78,
-                timestamp = System.currentTimeMillis() - 24 * 60 * 60 * 1000 // 1 day ago
-            )
-        )
-
-        threatItems.clear()
-        threatItems.addAll(demoThreats)
-        threatAdapter.submitList(threatItems)
-
-        // Update empty state visibility
-        binding.emptyStateView.visibility = if (threatItems.isEmpty()) View.VISIBLE else View.GONE
-    }
-
     private fun updateStatistics() {
         // Update the stats counters (just for demonstration)
         binding.tvTotalScanned.text = "42"
-        binding.tvThreatsDetected.text = threatItems.size.toString()
+        binding.tvThreatsDetected.text = threatRepository.getThreatCount().toString()
     }
 
     override fun onDestroyView() {

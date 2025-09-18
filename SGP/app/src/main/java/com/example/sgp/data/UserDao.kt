@@ -15,8 +15,14 @@ interface UserDao {
     @Delete
     suspend fun deleteUser(user: User)
 
+    @Query("DELETE FROM users WHERE uid = :uid")
+    suspend fun deleteUser(uid: String)
+
     @Query("SELECT * FROM users WHERE uid = :userId")
-    fun getUserById(userId: String): LiveData<User>
+    suspend fun getUserById(userId: String): User?
+
+    @Query("SELECT * FROM users WHERE uid = :userId")
+    fun getUserByIdLiveData(userId: String): LiveData<User>
 
     @Query("SELECT * FROM users WHERE uid = :userId")
     suspend fun getUserByIdSync(userId: String): User?
@@ -26,4 +32,13 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): User?
+
+    @Query("UPDATE users SET isOnline = :isOnline WHERE uid = :uid")
+    suspend fun updateOnlineStatus(uid: String, isOnline: Boolean)
+
+    @Query("UPDATE users SET lastSeen = :timestamp WHERE uid = :uid")
+    suspend fun updateLastSeen(uid: String, timestamp: Long)
+
+    @Query("SELECT * FROM users WHERE displayName LIKE :query OR email LIKE :query")
+    suspend fun searchUsers(query: String): List<User>
 }

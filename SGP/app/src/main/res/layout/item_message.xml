@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/textMessageContent"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/circle_background"
+        android:padding="12dp"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toStartOf="@+id/threatIndicator"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="This is a sample message content" />
+
+    <TextView
+        android:id="@+id/textTimestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="10sp"
+        android:textColor="@android:color/darker_gray"
+        app:layout_constraintStart_toStartOf="@+id/textMessageContent"
+        app:layout_constraintTop_toBottomOf="@+id/textMessageContent"
+        tools:text="10:30 AM" />
+
+    <ImageView
+        android:id="@+id/threatIndicator"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@android:drawable/ic_dialog_alert"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/textMessageContent"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/threatType"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="8sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="@+id/threatIndicator"
+        app:layout_constraintTop_toBottomOf="@+id/threatIndicator"
+        tools:text="PHISHING"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/confidenceScore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="8sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="@+id/threatType"
+        app:layout_constraintTop_toBottomOf="@+id/threatType"
+        tools:text="85%"
+        tools:visibility="visible" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/textMessageContent"
+        app:layout_constraintEnd_toStartOf="@+id/threatIndicator"
+        app:layout_constraintTop_toTopOf="@+id/textMessageContent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

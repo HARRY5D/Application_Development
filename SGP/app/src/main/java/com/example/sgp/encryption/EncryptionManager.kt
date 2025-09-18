@@ -5,6 +5,10 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
+import androidx.security.crypto.EncryptedFile
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import java.io.File
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -18,6 +22,13 @@ class EncryptionManager(private val context: Context) {
     private val MASTER_KEY_ALIAS = "secure_chat_master_key"
     private val GCM_IV_LENGTH = 12
     private val TRANSFORMATION = "AES/GCM/NoPadding"
+
+    // Master key for encryption using Android Security library
+    private val masterKey: MasterKey by lazy {
+        MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+    }
 
     init {
         // Initialize the master key for encryption
@@ -53,11 +64,8 @@ class EncryptionManager(private val context: Context) {
         }
     }
 
-    /**
-     * Encrypt a message using AES-GCM encryption
-     */
-    fun encryptMessage(message: String): String {
-        try {
+    fun encrypt(plainText: String): String? {
+        return try {
             val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
             keyStore.load(null)
 
@@ -66,99 +74,79 @@ class EncryptionManager(private val context: Context) {
             cipher.init(Cipher.ENCRYPT_MODE, secretKey)
 
             val iv = cipher.iv
-            val encryptedData = cipher.doFinal(message.toByteArray())
+            val encryptedData = cipher.doFinal(plainText.toByteArray())
 
-            // Combine IV + encrypted data
-            val result = ByteArray(iv.size + encryptedData.size)
-            System.arraycopy(iv, 0, result, 0, iv.size)
-            System.arraycopy(encryptedData, 0, result, iv.size, encryptedData.size)
-
-            return Base64.encodeToString(result, Base64.DEFAULT)
+            // Combine IV and encrypted data
+            val encryptedWithIv = iv + encryptedData
+            Base64.encodeToString(encryptedWithIv, Base64.DEFAULT)
         } catch (e: Exception) {
-            Log.e(TAG, "Error encrypting message", e)
-            // For demo purposes, return the original message if encryption fails
-            return message
+            Log.e(TAG, "Error encrypting data", e)
+            null
         }
     }
 
-    /**
-     * Decrypt a message using AES-GCM decryption
-     */
-    fun decryptMessage(encryptedMessage: String): String {
-        try {
+    fun decrypt(encryptedText: String): String? {
+        return try {
             val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
             keyStore.load(null)
 
             val secretKey = keyStore.getKey(MASTER_KEY_ALIAS, null) as SecretKey
-            val encryptedData = Base64.decode(encryptedMessage, Base64.DEFAULT)
+            val encryptedWithIv = Base64.decode(encryptedText, Base64.DEFAULT)
 
             // Extract IV and encrypted data
-            val iv = ByteArray(GCM_IV_LENGTH)
-            val cipherText = ByteArray(encryptedData.size - GCM_IV_LENGTH)
-            System.arraycopy(encryptedData, 0, iv, 0, iv.size)
-            System.arraycopy(encryptedData, iv.size, cipherText, 0, cipherText.size)
+            val iv = encryptedWithIv.sliceArray(0..GCM_IV_LENGTH - 1)
+            val encryptedData = encryptedWithIv.sliceArray(GCM_IV_LENGTH..encryptedWithIv.lastIndex)
 
             val cipher = Cipher.getInstance(TRANSFORMATION)
             val spec = GCMParameterSpec(128, iv)
             cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
 
-            val decryptedData = cipher.doFinal(cipherText)
-            return String(decryptedData)
+            val decryptedData = cipher.doFinal(encryptedData)
+            String(decryptedData)
         } catch (e: Exception) {
-            Log.e(TAG, "Error decrypting message", e)
-            // For demo purposes, return the encrypted message if decryption fails
-            return encryptedMessage
+            Log.e(TAG, "Error decrypting data", e)
+            null
         }
     }
 
-    /**
-     * Generate a mock public key for demonstration
-     */
-    fun getPublicKey(): String {
-        return "mock_public_key_${System.currentTimeMillis()}"
+    fun encryptMessage(message: String): String? {
+        return encrypt(message)
     }
 
-    /**
-     * Generate a mock private key for demonstration
-     */
-    fun getPrivateKey(): String {
-        return "mock_private_key_${System.currentTimeMillis()}"
+    fun decryptMessage(encryptedMessage: String): String? {
+        return decrypt(encryptedMessage)
     }
 
-    /**
-     * Mock key exchange for demo purposes
-     */
-    fun performKeyExchange(otherUserPublicKey: String): Boolean {
-        Log.d(TAG, "Performing key exchange with: $otherUserPublicKey")
-        // For demo purposes, always return true
-        return true
+    // Additional method using Android Security library for file encryption
+    fun createEncryptedFile(fileName: String): EncryptedFile {
+        val file = File(context.filesDir, fileName)
+        return EncryptedFile.Builder(
+            context,
+            file,
+            masterKey,
+            EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
+        ).build()
     }
 
-    /**
-     * Check if encryption is available
-     */
-    fun isEncryptionAvailable(): Boolean {
+    fun isKeyAvailable(): Boolean {
         return try {
             val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
             keyStore.load(null)
             keyStore.containsAlias(MASTER_KEY_ALIAS)
         } catch (e: Exception) {
-            Log.e(TAG, "Error checking encryption availability", e)
+            Log.e(TAG, "Error checking key availability", e)
             false
         }
     }
 
-    /**
-     * Clear all encryption keys (for logout or reset)
-     */
-    fun clearKeys() {
+    fun deleteKey() {
         try {
             val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
             keyStore.load(null)
             keyStore.deleteEntry(MASTER_KEY_ALIAS)
-            Log.d(TAG, "Encryption keys cleared")
+            Log.d(TAG, "Master key deleted from Android Keystore")
         } catch (e: Exception) {
-            Log.e(TAG, "Error clearing keys", e)
+            Log.e(TAG, "Error deleting master key", e)
         }
     }
 }

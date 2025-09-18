@@ -26,6 +26,12 @@
     <color name="safe_green">#FF34C759</color>
     <color name="caution_amber">#FFFF9500</color>
 
+    <!-- Threat indicator colors -->
+    <color name="threat_high">#FFFF3B30</color>        <!-- Red for phishing/abusive -->
+    <color name="threat_medium">#FFFF9500</color>      <!-- Orange for spam -->
+    <color name="threat_low">#FFFFD700</color>         <!-- Yellow for low threats -->
+    <color name="threat_safe">#FF34C759</color>        <!-- Green for safe messages -->
+
     <!-- Transparent colors -->
     <color name="semi_transparent_black">#99000000</color>
 

@@ -6,11 +6,15 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.sgp.R
+import com.example.sgp.adapter.ConversationAdapter
 import com.example.sgp.databinding.FragmentConversationsBinding
 import com.example.sgp.model.Conversation
+import com.example.sgp.viewmodel.MainViewModel
+import com.example.sgp.viewmodel.MessageClassificationViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -21,8 +25,12 @@ class ConversationsFragment : Fragment() {
     private var _binding: FragmentConversationsBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var adapter: ConversationsAdapter
+    private lateinit var adapter: ConversationAdapter
     private val conversations = mutableListOf<Conversation>()
+
+    // ViewModels
+    private lateinit var mainViewModel: MainViewModel
+    private lateinit var classificationViewModel: MessageClassificationViewModel
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -36,166 +44,163 @@ class ConversationsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        setupViewModels()
         setupToolbar()
         setupRecyclerView()
-        loadMockConversations()
+        observeViewModels()
+        loadConversations()
 
         binding.fabNewChat.setOnClickListener {
             // In a real app, this would show a user selection dialog
             Toast.makeText(requireContext(), "New chat feature coming soon!", Toast.LENGTH_SHORT).show()
 
             // For demo purposes, navigate to a mock chat
-            findNavController().navigate(R.id.chatFragment, Bundle().apply {
-                putString("userId", "demo_user")
-                putString("userName", "Demo User")
-            })
+            val action = ConversationsFragmentDirections.actionConversationsToChat(
+                userId = "demo_user_${System.currentTimeMillis()}",
+                userName = "Demo User"
+            )
+            findNavController().navigate(action)
         }
+    }
+
+    private fun setupViewModels() {
+        mainViewModel = ViewModelProvider(this)[MainViewModel::class.java]
+        classificationViewModel = ViewModelProvider(this)[MessageClassificationViewModel::class.java]
     }
 
     private fun setupToolbar() {
-        binding.toolbar.inflateMenu(R.menu.menu_conversations)
-        binding.toolbar.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.action_logout -> {
-                    // In a real app, sign out from Firebase Auth
-                    findNavController().navigate(R.id.loginFragment)
-                    true
-                }
-                R.id.action_settings -> {
-                    Toast.makeText(requireContext(), "Settings coming soon!", Toast.LENGTH_SHORT).show()
-                    true
-                }
-                else -> false
-            }
-        }
+        binding.toolbar.title = "Secure Chat Lite"
     }
 
     private fun setupRecyclerView() {
-        adapter = ConversationsAdapter { conversation ->
-            // Navigate to chat screen when a conversation is clicked
-            findNavController().navigate(R.id.chatFragment, Bundle().apply {
-                putString("userId", conversation.participantIds[0])
-                putString("userName", conversation.groupName ?: "User")
-            })
+        adapter = ConversationAdapter { conversation ->
+            // Navigate to chat with the selected conversation
+            val action = ConversationsFragmentDirections.actionConversationsToChat(
+                userId = conversation.id,
+                userName = conversation.name
+            )
+            findNavController().navigate(action)
         }
 
         binding.recyclerViewConversations.apply {
+            this.adapter = this@ConversationsFragment.adapter
             layoutManager = LinearLayoutManager(requireContext())
-            adapter = this@ConversationsFragment.adapter
         }
+    }
+
+    private fun observeViewModels() {
+        // Observe all messages to update conversation previews
+        mainViewModel.allMessages.observe(viewLifecycleOwner) { messages ->
+            updateConversationsFromMessages(messages)
+        }
+
+        // Observe threat statistics
+        classificationViewModel.threatStats.observe(viewLifecycleOwner) { stats ->
+            updateThreatBadge(stats.threatsDetected)
+        }
+
+        // Observe loading state - hide loading since progressBar doesn't exist in layout
+        mainViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            // No progressBar in layout, could add one or handle loading differently
+        }
+    }
+
+    private fun loadConversations() {
+        // Load mock conversations for demo
+        loadMockConversations()
     }
 
     private fun loadMockConversations() {
-        binding.progressBarConversations.visibility = View.VISIBLE
+        conversations.clear()
 
-        // For demo purposes, create some mock conversations
-        val currentTime = System.currentTimeMillis()
-        val oneDayMillis = 24 * 60 * 60 * 1000L
-
-        conversations.apply {
-            clear()
-            add(Conversation(
-                id = "conv1",
-                participantIds = listOf("user1"),
-                lastMessagePreview = "Hey, how are you doing?",
-                lastMessageTime = currentTime,
+        // Add some demo conversations with different threat levels
+        conversations.addAll(listOf(
+            Conversation(
+                id = "conv_1",
+                name = "Alice Johnson",
+                participantIds = listOf("current_user", "alice_123"),
+                lastMessage = "Hey, how are you doing?",
+                lastMessageTime = System.currentTimeMillis() - 3600000,
                 unreadCount = 2,
-                groupName = "XYZ"
-            ))
-            add(Conversation(
-                id = "conv2",
-                participantIds = listOf("user2"),
-                lastMessagePreview = "Click this link to claim your prize: www.totallylegit.com",
-                lastMessageTime = currentTime - oneDayMillis,
-                unreadCount = 0,
-                groupName = "Alice Smith"
-            ))
-            add(Conversation(
-                id = "conv3",
-                participantIds = listOf("user3", "user4", "user5"),
-                lastMessagePreview = "Let's meet tomorrow at 10",
-                lastMessageTime = currentTime - 2 * oneDayMillis,
-                unreadCount = 0,
-                isGroup = true,
-                groupName = "Project Team"
-            ))
-            add(Conversation(
-                id = "conv4",
-                participantIds = listOf("user6"),
-                lastMessagePreview = "I need to ask you something important",
-                lastMessageTime = currentTime - 3 * oneDayMillis,
+                hasThreat = false,
+                isOnline = true
+            ),
+            Conversation(
+                id = "conv_2",
+                name = "Suspicious Sender",
+                participantIds = listOf("current_user", "suspicious_456"),
+                lastMessage = "URGENT: Verify your account immediately!",
+                lastMessageTime = System.currentTimeMillis() - 7200000,
                 unreadCount = 1,
-                groupName = "Bob Johnson"
-            ))
-        }
+                hasThreat = true,
+                isOnline = false
+            ),
+            Conversation(
+                id = "conv_3",
+                name = "Work Group",
+                participantIds = listOf("current_user", "work_789", "colleague_101"),
+                lastMessage = "Meeting scheduled for tomorrow",
+                lastMessageTime = System.currentTimeMillis() - 86400000,
+                unreadCount = 0,
+                hasThreat = false,
+                isOnline = true
+            ),
+            Conversation(
+                id = "conv_4",
+                name = "Spam Account",
+                participantIds = listOf("current_user", "spam_999"),
+                lastMessage = "Win $1000 now! Click here for amazing deals!",
+                lastMessageTime = System.currentTimeMillis() - 172800000,
+                unreadCount = 5,
+                hasThreat = true,
+                isOnline = false
+            )
+        ))
 
-        // Show empty state if no conversations
-        binding.tvNoConversations.visibility = if (conversations.isEmpty()) View.VISIBLE else View.GONE
-
-        // Update the adapter
-        adapter.submitList(conversations)
-        binding.progressBarConversations.visibility = View.GONE
+        adapter.submitList(conversations.toList())
     }
 
-    override fun onDestroyView() {
+    private fun updateConversationsFromMessages(messages: List<com.example.sgp.model.Message>) {
+        // Group messages by conversation and update conversation previews
+        val conversationMap = messages.groupBy { it.conversationId }
+
+        conversations.forEach { conversation ->
+            val conversationMessages = conversationMap[conversation.id]
+            if (!conversationMessages.isNullOrEmpty()) {
+                val latestMessage = conversationMessages.maxByOrNull { it.timestamp }
+                latestMessage?.let { msg ->
+                    val updatedConversation = conversation.copy(
+                        lastMessage = msg.content,
+                        lastMessageTime = msg.timestamp,
+                        hasThreat = msg.isThreat,
+                        unreadCount = conversationMessages.count { !it.isRead }
+                    )
+
+                    val index = conversations.indexOf(conversation)
+                    if (index != -1) {
+                        conversations[index] = updatedConversation
+                    }
+                }
+            }
+        }
+
+        // Sort by most recent message
+        conversations.sortByDescending { it.lastMessageTime }
+        adapter.submitList(conversations.toList())
+    }
+
+    private fun updateThreatBadge(threatCount: Int) {
+        // Update UI to show total threat count in toolbar
+        if (threatCount > 0) {
+            binding.toolbar.subtitle = "$threatCount threats detected"
+        } else {
+            binding.toolbar.subtitle = "All clear"
+        }
+    }
+
+    override fun onDestroyView()
+    {
         super.onDestroyView()
         _binding = null
-    }
-
-    // Inner class for the adapter
-    inner class ConversationsAdapter(
-        private val onConversationClicked: (Conversation) -> Unit
-    ) : androidx.recyclerview.widget.ListAdapter<Conversation, ConversationsAdapter.ConversationViewHolder>(
-        object : androidx.recyclerview.widget.DiffUtil.ItemCallback<Conversation>() {
-            override fun areItemsTheSame(oldItem: Conversation, newItem: Conversation): Boolean {
-                return oldItem.id == newItem.id
-            }
-
-            override fun areContentsTheSame(oldItem: Conversation, newItem: Conversation): Boolean {
-                return oldItem == newItem
-            }
-        }
-    ) {
-
-        inner class ConversationViewHolder(val binding: com.example.sgp.databinding.ItemConversationBinding) :
-            androidx.recyclerview.widget.RecyclerView.ViewHolder(binding.root)
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ConversationViewHolder {
-            val binding = com.example.sgp.databinding.ItemConversationBinding.inflate(
-                LayoutInflater.from(parent.context),
-                parent,
-                false
-            )
-            return ConversationViewHolder(binding)
-        }
-
-        override fun onBindViewHolder(holder: ConversationViewHolder, position: Int) {
-            val conversation = getItem(position)
-
-            holder.binding.apply {
-                // Set conversation name
-                textViewName.text = conversation.groupName
-
-                // Set last message preview
-                textViewLastMessage.text = conversation.lastMessagePreview
-
-                // Format and set time
-                val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
-                textViewTime.text = sdf.format(Date(conversation.lastMessageTime))
-
-                // Set unread count
-                if (conversation.unreadCount > 0) {
-                    textViewUnreadCount.visibility = View.VISIBLE
-                    textViewUnreadCount.text = if (conversation.unreadCount > 9) "9+" else conversation.unreadCount.toString()
-                } else {
-                    textViewUnreadCount.visibility = View.GONE
-                }
-
-                // Click listener
-                root.setOnClickListener {
-                    onConversationClicked(conversation)
-                }
-            }
-        }
     }
 }

@@ -33,7 +33,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:contentDescription="New Chat"
-        android:src="@android:drawable/ic_dialog_email"
+        android:src="@drawable/bg_message_content"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

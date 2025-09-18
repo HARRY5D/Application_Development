@@ -9,8 +9,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.sgp.R
 import com.example.sgp.databinding.FragmentRegisterBinding
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.sgp.utils.InputValidator
 import com.example.sgp.model.User
 import java.util.UUID
 
@@ -18,9 +17,6 @@ class RegisterFragment : Fragment() {
 
     private var _binding: FragmentRegisterBinding? = null
     private val binding get() = _binding!!
-
-    private lateinit var auth: FirebaseAuth
-    private lateinit var db: FirebaseFirestore
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -33,9 +29,6 @@ class RegisterFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        auth = FirebaseAuth.getInstance()
-        db = FirebaseFirestore.getInstance()
 
         // Set up click listeners
         binding.btnRegister.setOnClickListener {
@@ -53,9 +46,19 @@ class RegisterFragment : Fragment() {
         val password = binding.etRegisterPassword.text.toString().trim()
         val confirmPassword = binding.etConfirmPassword.text.toString().trim()
 
-        // Simple validation
-        if (name.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
-            Toast.makeText(requireContext(), "Please fill all fields", Toast.LENGTH_SHORT).show()
+        // Validation using InputValidator
+        if (!InputValidator.isValidDisplayName(name)) {
+            Toast.makeText(requireContext(), "Please enter a valid name", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (!InputValidator.isValidEmail(email)) {
+            Toast.makeText(requireContext(), "Please enter a valid email", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (!InputValidator.isValidPassword(password)) {
+            Toast.makeText(requireContext(), "Password must be at least 8 characters with uppercase, lowercase, number and special character", Toast.LENGTH_LONG).show()
             return
         }
 
@@ -64,64 +67,35 @@ class RegisterFragment : Fragment() {
             return
         }
 
-        if (password.length < 6) {
-            Toast.makeText(requireContext(), "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         // Show progress bar
         binding.progressBarRegister.visibility = View.VISIBLE
 
-        // For demo purposes, simulate registration success
-        if (email == "demo@example.com") {
-            // Create a demo user
-            val userId = UUID.randomUUID().toString()
+        // Local registration - for demo purposes
+        simulateLocalRegistration(name, email, password)
+    }
+
+    private fun simulateLocalRegistration(name: String, email: String, password: String) {
+        // Simulate registration delay
+        binding.root.postDelayed({
+            binding.progressBarRegister.visibility = View.GONE
+
+            // Create user object for local storage
             val user = User(
-                uid = userId,
+                uid = UUID.randomUUID().toString(),
                 displayName = name,
                 email = email,
-                lastSeen = System.currentTimeMillis()
+                photoUrl = null,
+                publicKey = null,
+                lastSeen = System.currentTimeMillis(),
+                isOnline = true
             )
 
-            // Store user in mock database
-            binding.progressBarRegister.visibility = View.GONE
-            Toast.makeText(requireContext(), "Account created successfully", Toast.LENGTH_SHORT).show()
-            findNavController().navigate(R.id.conversationsFragment)
-            return
-        }
+            // In a real app, you would save user to local database
+            Toast.makeText(requireContext(), "Registration successful! Welcome $name", Toast.LENGTH_SHORT).show()
 
-        // In a real app, register with Firebase
-        auth.createUserWithEmailAndPassword(email, password)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val userId = auth.currentUser?.uid ?: UUID.randomUUID().toString()
-
-                    // Create user profile
-                    val user = User(
-                        uid = userId,
-                        displayName = name,
-                        email = email,
-                        lastSeen = System.currentTimeMillis()
-                    )
-
-                    // Save to Firestore
-                    db.collection("users")
-                        .document(userId)
-                        .set(user)
-                        .addOnSuccessListener {
-                            binding.progressBarRegister.visibility = View.GONE
-                            Toast.makeText(requireContext(), "Account created successfully", Toast.LENGTH_SHORT).show()
-                            findNavController().navigate(R.id.conversationsFragment)
-                        }
-                        .addOnFailureListener { e ->
-                            binding.progressBarRegister.visibility = View.GONE
-                            Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                } else {
-                    binding.progressBarRegister.visibility = View.GONE
-                    Toast.makeText(requireContext(), "Registration failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
+            // Navigate back to login
+            findNavController().navigate(R.id.loginFragment)
+        }, 1500) // 1.5 second delay for demo
     }
 
     override fun onDestroyView() {

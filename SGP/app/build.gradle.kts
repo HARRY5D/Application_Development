@@ -3,7 +3,6 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("kotlin-kapt")
     id("androidx.navigation.safeargs.kotlin")
-    id("com.google.gms.google-services")
 }
 
 android {
@@ -29,16 +28,29 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     // Enable ViewBinding
     buildFeatures {
         viewBinding = true
+    }
+
+    // Configure Lint to handle protected permissions
+    lint {
+        disable.add("ProtectedPermissions")
+        disable.add("QueryAllPackagesPermission")
+        disable.add("HighAppVersionCode")
+        disable.add("UnusedAttribute")
+        abortOnError = false
+        warningsAsErrors = false
     }
 }
 
@@ -50,24 +62,16 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
 
-    // Firebase dependencies
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-messaging")
 
     // CircleImageView for profile images
     implementation("de.hdodenhof:circleimageview:3.1.0")
 
-    // Encryption libraries - commented out for demo to avoid dependency issues
-    // implementation("com.goterl:lazysodium-android:5.0.2")
-    // implementation("com.goterl:lazysodium-java:5.0.1")
-    // implementation("net.java.dev.jna:jna:5.8.0@aar")
+    // Android Security libraries (built-in, more reliable)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
-    // TensorFlow Lite - commented out for demo to avoid dependency issues
-    // implementation("org.tensorflow:tensorflow-lite:2.9.0")
-    // implementation("org.tensorflow:tensorflow-lite-support:0.4.2")
-    // implementation("org.tensorflow:tensorflow-lite-metadata:0.4.2")
+    // TensorFlow Lite
+    implementation("org.tensorflow:tensorflow-lite:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
 
     // Room database
     implementation("androidx.room:room-runtime:2.6.1")

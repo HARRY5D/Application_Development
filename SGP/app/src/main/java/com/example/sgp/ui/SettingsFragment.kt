@@ -5,15 +5,21 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.SeekBar
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.example.sgp.R
 import com.example.sgp.databinding.FragmentSettingsBinding
+import com.example.sgp.repository.ThreatRepository
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.launch
 
 class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
+
+    private lateinit var threatRepository: ThreatRepository
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -27,6 +33,7 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        threatRepository = ThreatRepository.getInstance()
         setupSeekBar()
         setupButtons()
     }
@@ -52,12 +59,7 @@ class SettingsFragment : Fragment() {
 
     private fun setupButtons() {
         binding.btnClearThreatData.setOnClickListener {
-            // Show confirmation dialog (in a real app)
-            Snackbar.make(
-                binding.root,
-                "Threat history cleared",
-                Snackbar.LENGTH_SHORT
-            ).show()
+            showClearThreatDataConfirmation()
         }
 
         // App switch toggles
@@ -80,6 +82,46 @@ class SettingsFragment : Fragment() {
 
         binding.switchAlertNotifications.setOnCheckedChangeListener { _, isChecked ->
             showToggleMessage("Alert notifications", isChecked)
+        }
+    }
+
+    private fun showClearThreatDataConfirmation() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Clear Threat History")
+            .setMessage("Are you sure you want to clear all threat detection history? This action cannot be undone.")
+            .setIcon(R.drawable.ic_security_warning)
+            .setPositiveButton("Clear All") { _, _ ->
+                clearThreatData()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun clearThreatData() {
+        lifecycleScope.launch {
+            try {
+                threatRepository.clearAllThreats()
+
+                Snackbar.make(
+                    binding.root,
+                    "✅ Threat history cleared successfully",
+                    Snackbar.LENGTH_LONG
+                ).setAction("Undo") {
+                    // Optional: Implement undo functionality
+                    Snackbar.make(
+                        binding.root,
+                        "Undo functionality coming soon",
+                        Snackbar.LENGTH_SHORT
+                    ).show()
+                }.show()
+
+            } catch (e: Exception) {
+                Snackbar.make(
+                    binding.root,
+                    "❌ Failed to clear threat history: ${e.message}",
+                    Snackbar.LENGTH_LONG
+                ).show()
+            }
         }
     }
 
